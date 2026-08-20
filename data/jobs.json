@@ -1,0 +1,46 @@
+[
+  {
+    "id": "job-1787170198507",
+    "title": "TV Repair - italia",
+    "clientName": "italia",
+    "category": "TV Repair",
+    "status": "in_progress",
+    "agreedPrice": 100,
+    "paidAmount": 0,
+    "materialCosts": 30,
+    "startDate": "2026-08-19",
+    "acquisitionSource": "Friend (Recommandation)",
+    "daysSpent": 1,
+    "daysPaused": 0,
+    "logs": [
+      {
+        "id": "log-1787170198507",
+        "timestamp": "2026-08-19",
+        "status": "in_progress",
+        "note": "Job created via source: Friend (Recommandation)"
+      }
+    ]
+  },
+  {
+    "id": "job-1787169908779",
+    "title": "Camera Error / Repair - simo",
+    "clientName": "simo",
+    "category": "Camera Error / Repair",
+    "status": "paid",
+    "agreedPrice": 120,
+    "paidAmount": 120,
+    "materialCosts": 25,
+    "startDate": "2026-08-19",
+    "acquisitionSource": "Friend (Recommandation)",
+    "daysSpent": 1,
+    "daysPaused": 0,
+    "logs": [
+      {
+        "id": "log-1787169908779",
+        "timestamp": "2026-08-19",
+        "status": "paid",
+        "note": "Job created via source: Friend (Recommandation)"
+      }
+    ]
+  }
+]

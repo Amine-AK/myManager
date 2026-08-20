@@ -1,0 +1,176 @@
+// ==========================================
+// STORAGE LAYER - JSON FILE REPOSITORY
+// Reads & writes directly to local disk .json files via Express backend
+// ==========================================
+
+import type { IDataRepository } from './repository';
+import type { Job, BusinessExpense, PersonalExpense, DebtObligation, DebtPayment, Client } from '../../types';
+
+const API_BASE = '/api';
+
+export class JsonFileRepository implements IDataRepository {
+  // --- JOBS ---
+  async getJobs(): Promise<Job[]> {
+    try {
+      const res = await fetch(`${API_BASE}/jobs`);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  }
+
+  async saveJob(job: Job): Promise<Job> {
+    const res = await fetch(`${API_BASE}/jobs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(job)
+    });
+    return await res.json();
+  }
+
+  async deleteJob(id: string): Promise<boolean> {
+    const res = await fetch(`${API_BASE}/jobs/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    return data.success;
+  }
+
+  // --- BUSINESS EXPENSES ---
+  async getBusinessExpenses(): Promise<BusinessExpense[]> {
+    try {
+      const res = await fetch(`${API_BASE}/business-expenses`);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  }
+
+  async saveBusinessExpense(expense: BusinessExpense): Promise<BusinessExpense> {
+    const res = await fetch(`${API_BASE}/business-expenses`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(expense)
+    });
+    return await res.json();
+  }
+
+  async deleteBusinessExpense(id: string): Promise<boolean> {
+    const res = await fetch(`${API_BASE}/business-expenses/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    return data.success;
+  }
+
+  // --- PERSONAL EXPENSES ---
+  async getPersonalExpenses(): Promise<PersonalExpense[]> {
+    try {
+      const res = await fetch(`${API_BASE}/personal-expenses`);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  }
+
+  async savePersonalExpense(expense: PersonalExpense): Promise<PersonalExpense> {
+    const res = await fetch(`${API_BASE}/personal-expenses`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(expense)
+    });
+    return await res.json();
+  }
+
+  async deletePersonalExpense(id: string): Promise<boolean> {
+    const res = await fetch(`${API_BASE}/personal-expenses/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    return data.success;
+  }
+
+  // --- DEBTS & PAYMENTS ---
+  async getDebtObligations(): Promise<DebtObligation[]> {
+    try {
+      const res = await fetch(`${API_BASE}/debts`);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  }
+
+  async saveDebtObligation(debt: DebtObligation): Promise<DebtObligation> {
+    const res = await fetch(`${API_BASE}/debts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(debt)
+    });
+    return await res.json();
+  }
+
+  async deleteDebtObligation(id: string): Promise<boolean> {
+    const res = await fetch(`${API_BASE}/debts/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    return data.success;
+  }
+
+  async getDebtPayments(): Promise<DebtPayment[]> {
+    try {
+      const res = await fetch(`${API_BASE}/debt-payments`);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  }
+
+  async saveDebtPayment(payment: DebtPayment): Promise<DebtPayment> {
+    const res = await fetch(`${API_BASE}/debt-payments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payment)
+    });
+    return await res.json();
+  }
+
+  // --- CLIENTS ---
+  async getClients(): Promise<Client[]> {
+    try {
+      const res = await fetch(`${API_BASE}/clients`);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  }
+
+  async saveClient(client: Client): Promise<Client> {
+    const res = await fetch(`${API_BASE}/clients`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(client)
+    });
+    return await res.json();
+  }
+
+  // --- BACKUP & RESTORE ---
+  async exportAllData(): Promise<string> {
+    const res = await fetch(`${API_BASE}/export`);
+    const data = await res.json();
+    return JSON.stringify(data, null, 2);
+  }
+
+  async importAllData(jsonString: string): Promise<boolean> {
+    try {
+      const data = JSON.parse(jsonString);
+      const res = await fetch(`${API_BASE}/import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      const result = await res.json();
+      return result.success;
+    } catch {
+      return false;
+    }
+  }
+
+  async resetToSeedData(): Promise<void> {
+    await fetch(`${API_BASE}/reset`, { method: 'POST' });
+  }
+}
+
+export const jsonFileRepository = new JsonFileRepository();

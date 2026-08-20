@@ -4,14 +4,19 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "server": "node server/server.js",
+    "dev": "concurrently \"node server/server.js\" \"vite\"",
     "build": "tsc -b && vite build",
     "test": "vitest run",
     "lint": "oxlint",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
     "autoprefixer": "^10.5.4",
+    "concurrently": "^10.0.5",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
     "lucide-react": "^1.32.0",
     "postcss": "^8.5.26",
     "react": "^19.2.8",

@@ -10,7 +10,7 @@ import type {
   FactualInsight
 } from './types';
 import { computeFinancialMetrics, generateFactualInsights } from './lib/calculations';
-import { repository } from './lib/storage/localRepository';
+import { jsonFileRepository as repository } from './lib/storage/jsonFileRepository';
 import { HeaderNav } from './components/header/HeaderNav';
 import { DashboardView } from './components/dashboard/DashboardView';
 import { JobsView } from './components/jobs/JobsView';

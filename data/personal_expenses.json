@@ -1,0 +1,23 @@
+[
+  {
+    "id": "exp-1787169972519",
+    "title": "Food & Groceries (Alimentation)",
+    "amount": 100,
+    "category": "Food & Groceries (Alimentation)",
+    "date": "2026-08-19"
+  },
+  {
+    "id": "exp-1787169950172",
+    "title": "Café & Snacks (Café / Thé / Snacks)",
+    "amount": 10,
+    "category": "Café & Snacks (Café / Thé / Snacks)",
+    "date": "2026-08-19"
+  },
+  {
+    "id": "exp-1787169925001",
+    "title": "Café & Thé",
+    "amount": 15,
+    "category": "Café & Snacks (Café / Thé / Snacks)",
+    "date": "2026-08-19"
+  }
+]

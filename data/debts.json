@@ -1,0 +1,10 @@
+[
+  {
+    "id": "debt-1787170052890",
+    "creditor": "simo",
+    "type": "equipment_finance",
+    "totalAmount": 350,
+    "remainingBalance": 350,
+    "status": "active"
+  }
+]
