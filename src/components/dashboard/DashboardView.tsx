@@ -1,5 +1,5 @@
 import React from 'react';
-import type { FinancialMetrics, FactualInsight, Job, DebtObligation } from '../../types';
+import type { FinancialMetrics, FactualInsight, Job, DebtObligation, BusinessExpense, PersonalExpense } from '../../types';
 import {
   Wallet,
   TrendingUp,
@@ -14,12 +14,15 @@ import {
 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 import { AcquisitionFunnelCard } from './AcquisitionFunnelCard';
+import { WeeklySpendingTrackerCard } from './WeeklySpendingTrackerCard';
 
 interface DashboardViewProps {
   metrics: FinancialMetrics;
   insights: FactualInsight[];
   jobs: Job[];
   debts: DebtObligation[];
+  businessExpenses: BusinessExpense[];
+  personalExpenses: PersonalExpense[];
   onOpenQuickJob: () => void;
   onOpenQuickExpense: () => void;
   onOpenQuickDebtPayment: () => void;
@@ -29,6 +32,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   metrics,
   insights,
   jobs,
+  businessExpenses,
+  personalExpenses,
   onOpenQuickJob,
   onOpenQuickExpense,
   onOpenQuickDebtPayment
@@ -257,6 +262,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* SECTION: WEEKLY SPENDING & REWARD TRACKER */}
+      <WeeklySpendingTrackerCard
+        jobs={jobs}
+        businessExpenses={businessExpenses}
+        personalExpenses={personalExpenses}
+      />
 
       {/* SECTION: CLIENT ACQUISITION LEAD FUNNEL */}
       <AcquisitionFunnelCard jobs={jobs} />

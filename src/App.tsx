@@ -180,6 +180,8 @@ export function App() {
             insights={insights}
             jobs={jobs}
             debts={debts}
+            businessExpenses={businessExpenses}
+            personalExpenses={personalExpenses}
             onOpenQuickJob={() => setIsJobModalOpen(true)}
             onOpenQuickExpense={() => setIsExpenseModalOpen(true)}
             onOpenQuickDebtPayment={() => setIsDebtModalOpen(true)}

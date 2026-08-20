@@ -22,6 +22,7 @@ export * from './profitability';
 export * from './debt';
 export * from './insights';
 export * from './acquisition';
+export * from './weeklyTracker';
 
 /**
  * SINGLE SOURCE OF TRUTH FOR ALL FINANCIAL CALCULATIONS.
