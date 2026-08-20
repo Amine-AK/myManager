@@ -20,8 +20,14 @@ import { PrintStatementView } from './components/export/PrintStatementView';
 import { QuickExpenseModal } from './components/quickEntry/QuickExpenseModal';
 import { QuickJobModal } from './components/quickEntry/QuickJobModal';
 import { QuickDebtPaymentModal } from './components/quickEntry/QuickDebtPaymentModal';
+import { LoginModal } from './components/auth/LoginModal';
 
 export function App() {
+  // Authentication State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(
+    () => localStorage.getItem('handyman_authenticated') === 'true'
+  );
+
   // Navigation State
   const [activeTab, setActiveTab] = useState<'dashboard' | 'jobs' | 'expenses' | 'debts' | 'print'>('dashboard');
   const [language, setLanguage] = useState<'FR' | 'EN' | 'AR'>('FR');
@@ -147,6 +153,15 @@ export function App() {
     await loadData();
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('handyman_authenticated');
+    setIsAuthenticated(false);
+  };
+
+  if (!isAuthenticated) {
+    return <LoginModal onLoginSuccess={() => setIsAuthenticated(true)} />;
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400">
@@ -170,6 +185,7 @@ export function App() {
         onOpenQuickDebtPayment={() => setIsDebtModalOpen(true)}
         language={language}
         setLanguage={setLanguage}
+        onLogout={handleLogout}
       />
 
       {/* Main Content Area */}

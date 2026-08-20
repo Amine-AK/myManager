@@ -12,7 +12,8 @@ import {
   BarChart3,
   Receipt,
   PiggyBank,
-  Globe
+  Globe,
+  Lock
 } from 'lucide-react';
 
 interface HeaderNavProps {
@@ -24,6 +25,7 @@ interface HeaderNavProps {
   onOpenQuickDebtPayment: () => void;
   language: 'FR' | 'EN' | 'AR';
   setLanguage: (lang: 'FR' | 'EN' | 'AR') => void;
+  onLogout?: () => void;
 }
 
 export const HeaderNav: React.FC<HeaderNavProps> = ({
@@ -34,7 +36,8 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
   onOpenQuickJob,
   onOpenQuickDebtPayment,
   language,
-  setLanguage
+  setLanguage,
+  onLogout
 }) => {
   return (
     <>
@@ -97,6 +100,18 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
                   عربي
                 </button>
               </div>
+
+              {/* Lock / Logout Button */}
+              {onLogout && (
+                <button
+                  onClick={onLogout}
+                  className="flex items-center gap-1 px-2 py-0.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-lg text-[10px] font-bold transition"
+                  title="Lock Private Session"
+                >
+                  <Lock className="w-3 h-3" />
+                  <span className="hidden xs:inline">Lock</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
