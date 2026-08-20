@@ -66,7 +66,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ onLoginSuccess }) => {
                 type="text"
                 required
                 autoFocus
-                placeholder="AMINEAK"
+                placeholder="USERNAME"
                 value={username}
                 onChange={e => {
                   setUsername(e.target.value);
