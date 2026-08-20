@@ -12,8 +12,7 @@ import {
 } from 'lucide-react';
 import {
   ResponsiveContainer,
-  AreaChart,
-  Area,
+  LineChart,
   Line,
   XAxis,
   YAxis,
@@ -39,10 +38,8 @@ export const WeeklySpendingTrackerCard: React.FC<WeeklySpendingTrackerCardProps>
 
   const chartData = summary.days.map(d => ({
     day: d.dayName,
-    Personal: d.personalSpent,
-    Work: d.workSpent,
-    Total: d.totalSpent,
-    Collected: d.cashCollected
+    'Total Money Spent': d.totalSpent,
+    'Total Money Collected': d.cashCollected
   }));
 
   return (
@@ -55,7 +52,7 @@ export const WeeklySpendingTrackerCard: React.FC<WeeklySpendingTrackerCardProps>
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="font-bold text-slate-100 text-sm">Daily Spending & Cash Surplus Stacked Tracker</h3>
+              <h3 className="font-bold text-slate-100 text-sm">Daily Cash Collected vs Total Spent</h3>
               {summary.isCurrentWeek && (
                 <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-extrabold rounded-md border border-emerald-500/30 uppercase">
                   Live Week
@@ -116,14 +113,14 @@ export const WeeklySpendingTrackerCard: React.FC<WeeklySpendingTrackerCardProps>
             <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
               Total Spent (7 Days)
             </span>
-            <strong className="text-amber-400 font-extrabold text-lg font-mono">
+            <strong className="text-rose-400 font-extrabold text-lg font-mono">
               {summary.totalWeeklySpent.toLocaleString('fr-MA')} MAD
             </strong>
             <span className="text-[10px] text-slate-500 block">
               Pers: {summary.totalPersonalSpent} MAD | Work: {summary.totalWorkSpent} MAD
             </span>
           </div>
-          <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400">
+          <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-400">
             <TrendingDown className="w-6 h-6" />
           </div>
         </div>
@@ -145,25 +142,15 @@ export const WeeklySpendingTrackerCard: React.FC<WeeklySpendingTrackerCardProps>
         </div>
       </div>
 
-      {/* Live Weekly Stacked Line Chart Visualizer */}
+      {/* 2-Line Live Tracker: Line 1 = Money Collected, Line 2 = Money Spent */}
       <div className="space-y-2">
         <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-          Daily Spending & Income Trends (Stacked Lines)
+          Money Collected vs Total Spent (Mon - Sun)
         </h4>
 
         <div className="h-64 w-full pt-2">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorWork" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0} />
-                </linearGradient>
-                <linearGradient id="colorPersonal" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.0} />
-                </linearGradient>
-              </defs>
+            <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
               <XAxis dataKey="day" stroke="#64748b" fontSize={11} tickLine={false} />
               <YAxis stroke="#64748b" fontSize={11} tickLine={false} />
@@ -177,38 +164,25 @@ export const WeeklySpendingTrackerCard: React.FC<WeeklySpendingTrackerCardProps>
                 }}
               />
               <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-              {/* Stacked Spending Area Lines */}
-              <Area
-                type="monotone"
-                dataKey="Work"
-                name="Work Overhead"
-                stackId="1"
-                stroke="#3b82f6"
-                strokeWidth={2}
-                fillOpacity={1}
-                fill="url(#colorWork)"
-              />
-              <Area
-                type="monotone"
-                dataKey="Personal"
-                name="Personal (Café, Gaming...)"
-                stackId="1"
-                stroke="#f59e0b"
-                strokeWidth={2}
-                fillOpacity={1}
-                fill="url(#colorPersonal)"
-              />
-              {/* Cash Income Line */}
+              {/* LINE 1: ALL MONEY COLLECTED */}
               <Line
                 type="monotone"
-                dataKey="Collected"
-                name="Cash Income Collected"
+                dataKey="Total Money Collected"
                 stroke="#10b981"
-                strokeWidth={2.5}
-                dot={{ r: 4, fill: '#10b981' }}
-                activeDot={{ r: 6 }}
+                strokeWidth={3}
+                dot={{ r: 5, fill: '#10b981' }}
+                activeDot={{ r: 7 }}
               />
-            </AreaChart>
+              {/* LINE 2: ALL MONEY SPENT */}
+              <Line
+                type="monotone"
+                dataKey="Total Money Spent"
+                stroke="#f43f5e"
+                strokeWidth={3}
+                dot={{ r: 5, fill: '#f43f5e' }}
+                activeDot={{ r: 7 }}
+              />
+            </LineChart>
           </ResponsiveContainer>
         </div>
       </div>
