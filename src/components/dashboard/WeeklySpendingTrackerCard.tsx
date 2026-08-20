@@ -12,12 +12,13 @@ import {
 } from 'lucide-react';
 import {
   ResponsiveContainer,
-  BarChart,
-  Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   Tooltip,
-  Legend
+  Legend,
+  CartesianGrid
 } from 'recharts';
 
 interface WeeklySpendingTrackerCardProps {
@@ -53,7 +54,7 @@ export const WeeklySpendingTrackerCard: React.FC<WeeklySpendingTrackerCardProps>
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="font-bold text-slate-100 text-sm">Daily Spending & Cash Surplus Tracker</h3>
+              <h3 className="font-bold text-slate-100 text-sm">Daily Spending & Cash Surplus Line Tracker</h3>
               {summary.isCurrentWeek && (
                 <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-extrabold rounded-md border border-emerald-500/30 uppercase">
                   Live Week
@@ -143,15 +144,16 @@ export const WeeklySpendingTrackerCard: React.FC<WeeklySpendingTrackerCardProps>
         </div>
       </div>
 
-      {/* Live Weekly Recharts Visualizer */}
+      {/* Live Weekly Line Chart Visualizer */}
       <div className="space-y-2">
         <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-          Daily Spending Breakdown (Mon - Sun)
+          Daily Spending & Income Trends (Mon - Sun)
         </h4>
 
         <div className="h-64 w-full pt-2">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
               <XAxis dataKey="day" stroke="#64748b" fontSize={11} tickLine={false} />
               <YAxis stroke="#64748b" fontSize={11} tickLine={false} />
               <Tooltip
@@ -164,9 +166,34 @@ export const WeeklySpendingTrackerCard: React.FC<WeeklySpendingTrackerCardProps>
                 }}
               />
               <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-              <Bar dataKey="Personal" name="Personal (Café, Gaming...)" fill="#f59e0b" radius={[4, 4, 0, 0]} stackId="a" />
-              <Bar dataKey="Work" name="Work Overhead" fill="#3b82f6" radius={[4, 4, 0, 0]} stackId="a" />
-            </BarChart>
+              <Line
+                type="monotone"
+                dataKey="Personal"
+                name="Personal (Café, Gaming...)"
+                stroke="#f59e0b"
+                strokeWidth={2}
+                dot={{ r: 4, fill: '#f59e0b' }}
+                activeDot={{ r: 6 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="Work"
+                name="Work Overhead"
+                stroke="#3b82f6"
+                strokeWidth={2}
+                dot={{ r: 4, fill: '#3b82f6' }}
+                activeDot={{ r: 6 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="Collected"
+                name="Cash Income Collected"
+                stroke="#10b981"
+                strokeWidth={2.5}
+                dot={{ r: 4, fill: '#10b981' }}
+                activeDot={{ r: 6 }}
+              />
+            </LineChart>
           </ResponsiveContainer>
         </div>
       </div>
