@@ -12,7 +12,8 @@ import {
 } from 'lucide-react';
 import {
   ResponsiveContainer,
-  LineChart,
+  AreaChart,
+  Area,
   Line,
   XAxis,
   YAxis,
@@ -54,7 +55,7 @@ export const WeeklySpendingTrackerCard: React.FC<WeeklySpendingTrackerCardProps>
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="font-bold text-slate-100 text-sm">Daily Spending & Cash Surplus Line Tracker</h3>
+              <h3 className="font-bold text-slate-100 text-sm">Daily Spending & Cash Surplus Stacked Tracker</h3>
               {summary.isCurrentWeek && (
                 <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] font-extrabold rounded-md border border-emerald-500/30 uppercase">
                   Live Week
@@ -144,15 +145,25 @@ export const WeeklySpendingTrackerCard: React.FC<WeeklySpendingTrackerCardProps>
         </div>
       </div>
 
-      {/* Live Weekly Line Chart Visualizer */}
+      {/* Live Weekly Stacked Line Chart Visualizer */}
       <div className="space-y-2">
         <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-          Daily Spending & Income Trends (Mon - Sun)
+          Daily Spending & Income Trends (Stacked Lines)
         </h4>
 
         <div className="h-64 w-full pt-2">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorWork" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0} />
+                </linearGradient>
+                <linearGradient id="colorPersonal" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4} />
+                  <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.0} />
+                </linearGradient>
+              </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
               <XAxis dataKey="day" stroke="#64748b" fontSize={11} tickLine={false} />
               <YAxis stroke="#64748b" fontSize={11} tickLine={false} />
@@ -166,24 +177,28 @@ export const WeeklySpendingTrackerCard: React.FC<WeeklySpendingTrackerCardProps>
                 }}
               />
               <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
-              <Line
-                type="monotone"
-                dataKey="Personal"
-                name="Personal (Café, Gaming...)"
-                stroke="#f59e0b"
-                strokeWidth={2}
-                dot={{ r: 4, fill: '#f59e0b' }}
-                activeDot={{ r: 6 }}
-              />
-              <Line
+              {/* Stacked Spending Area Lines */}
+              <Area
                 type="monotone"
                 dataKey="Work"
                 name="Work Overhead"
+                stackId="1"
                 stroke="#3b82f6"
                 strokeWidth={2}
-                dot={{ r: 4, fill: '#3b82f6' }}
-                activeDot={{ r: 6 }}
+                fillOpacity={1}
+                fill="url(#colorWork)"
               />
+              <Area
+                type="monotone"
+                dataKey="Personal"
+                name="Personal (Café, Gaming...)"
+                stackId="1"
+                stroke="#f59e0b"
+                strokeWidth={2}
+                fillOpacity={1}
+                fill="url(#colorPersonal)"
+              />
+              {/* Cash Income Line */}
               <Line
                 type="monotone"
                 dataKey="Collected"
@@ -193,7 +208,7 @@ export const WeeklySpendingTrackerCard: React.FC<WeeklySpendingTrackerCardProps>
                 dot={{ r: 4, fill: '#10b981' }}
                 activeDot={{ r: 6 }}
               />
-            </LineChart>
+            </AreaChart>
           </ResponsiveContainer>
         </div>
       </div>
