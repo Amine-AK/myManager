@@ -186,6 +186,16 @@ export class JsonFileRepository implements IDataRepository {
       return false;
     }
   }
+
+  async clearAllData(): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE}/clear-all`, { method: 'POST' });
+      const result = await res.json();
+      return result.success;
+    } catch {
+      return false;
+    }
+  }
 }
 
 export const jsonFileRepository = new JsonFileRepository();

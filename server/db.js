@@ -675,3 +675,37 @@ export async function saveClientDb(client) {
   await writeJson('clients.json', clients);
   return client;
 }
+
+// --- CLEAR ALL DATA (testing / fresh start) ---
+export async function clearAllDataDb() {
+  if (sql) {
+    await sql`DELETE FROM job_payments;`;
+    await sql`DELETE FROM debt_payments;`;
+    await sql`DELETE FROM jobs;`;
+    await sql`DELETE FROM business_expenses;`;
+    await sql`DELETE FROM personal_expenses;`;
+    await sql`DELETE FROM debts;`;
+    await sql`DELETE FROM clients;`;
+    return true;
+  }
+
+  if (redis) {
+    await redis.set('jobs', []);
+    await redis.set('job_payments', []);
+    await redis.set('business_expenses', []);
+    await redis.set('personal_expenses', []);
+    await redis.set('debts', []);
+    await redis.set('debt_payments', []);
+    await redis.set('clients', []);
+    return true;
+  }
+
+  await writeJson('jobs.json', []);
+  await writeJson('job_payments.json', []);
+  await writeJson('business_expenses.json', []);
+  await writeJson('personal_expenses.json', []);
+  await writeJson('debts.json', []);
+  await writeJson('debt_payments.json', []);
+  await writeJson('clients.json', []);
+  return true;
+}

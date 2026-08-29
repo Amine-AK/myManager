@@ -37,4 +37,5 @@ export interface IDataRepository {
   // Backup & Import/Export
   exportAllData(): Promise<string>; // Returns JSON string
   importAllData(jsonString: string): Promise<boolean>;
+  clearAllData(): Promise<boolean>;
 }

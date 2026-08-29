@@ -19,7 +19,8 @@ import {
   getDebtPaymentsDb,
   saveDebtPaymentDb,
   getClientsDb,
-  saveClientDb
+  saveClientDb,
+  clearAllDataDb
 } from './db.js';
 
 const app = express();
@@ -243,6 +244,16 @@ app.post('/api/import', async (req, res) => {
     if (data.clients) {
       for (const c of data.clients) await saveClientDb(c);
     }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- CLEAR ALL DATA (testing / fresh start) ---
+app.post('/api/clear-all', async (req, res) => {
+  try {
+    await clearAllDataDb();
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

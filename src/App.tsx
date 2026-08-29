@@ -156,6 +156,11 @@ export function App() {
     return ok;
   };
 
+  const handleClearAllData = async () => {
+    await repository.clearAllData();
+    await loadData();
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('handyman_authenticated');
     setIsAuthenticated(false);
@@ -248,6 +253,7 @@ export function App() {
             debtPayments={debtPayments}
             onExportData={handleExportData}
             onImportData={handleImportData}
+            onClearAllData={handleClearAllData}
           />
         )}
       </main>
