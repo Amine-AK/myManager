@@ -30,11 +30,3 @@ export function calculateProfitMarginPercent(
   const netProfit = calculateNetBusinessProfit(jobs, businessExpenses);
   return (netProfit / income) * 100;
 }
-
-/**
- * Profit per job breakdown (Individual job net profit)
- * Job Net Profit = Paid Amount - Material Costs
- */
-export function calculateIndividualJobProfit(job: Job): number {
-  return (job.paidAmount || 0) - (job.materialCosts || 0);
-}

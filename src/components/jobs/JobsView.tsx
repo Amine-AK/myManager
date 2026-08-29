@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import type { Job, JobPayment, JobIntervention, JobStatus, JobActivityLog } from '../../types';
 import { computeJobDurations, calculateJobTotalHours } from '../../lib/calculations/jobTiming';
+import { EditJobModal } from './EditJobModal';
 import {
   Wrench,
   Plus,
   Search,
   AlertCircle,
   Trash2,
+  Pencil,
   DollarSign,
   User,
   Phone,
@@ -61,6 +63,9 @@ export const JobsView: React.FC<JobsViewProps> = ({
   // Resolving a Client Callback (captures hours spent on the fix)
   const [resolvingInterventionId, setResolvingInterventionId] = useState<string | null>(null);
   const [resolutionHours, setResolutionHours] = useState('');
+
+  // Edit Job Details Modal State
+  const [editingJob, setEditingJob] = useState<Job | null>(null);
 
   const filteredJobs = jobs.filter(j => {
     const matchesSearch =
@@ -442,31 +447,35 @@ export const JobsView: React.FC<JobsViewProps> = ({
                     </>
                   )}
 
-                  <button
-                    onClick={() => {
-                      setShowStatusModal(job);
-                      setNewStatus('waiting_parts');
-                      setStatusNote('');
-                      setStatusHours('');
-                    }}
-                    className="px-2.5 py-1 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded-lg font-semibold flex items-center gap-1 transition text-[11px]"
-                  >
-                    <Truck className="w-3 h-3" />
-                    Pause: Waiting Parts
-                  </button>
+                  {(job.status === 'in_progress' || job.status === 'waiting_parts' || job.status === 'revision_requested') && (
+                    <>
+                      <button
+                        onClick={() => {
+                          setShowStatusModal(job);
+                          setNewStatus('waiting_parts');
+                          setStatusNote('');
+                          setStatusHours('');
+                        }}
+                        className="px-2.5 py-1 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded-lg font-semibold flex items-center gap-1 transition text-[11px]"
+                      >
+                        <Truck className="w-3 h-3" />
+                        Pause: Waiting Parts
+                      </button>
 
-                  <button
-                    onClick={() => {
-                      setShowStatusModal(job);
-                      setNewStatus('revision_requested');
-                      setStatusNote('');
-                      setStatusHours('');
-                    }}
-                    className="px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-lg font-semibold flex items-center gap-1 transition text-[11px]"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    Client Revision
-                  </button>
+                      <button
+                        onClick={() => {
+                          setShowStatusModal(job);
+                          setNewStatus('revision_requested');
+                          setStatusNote('');
+                          setStatusHours('');
+                        }}
+                        className="px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-lg font-semibold flex items-center gap-1 transition text-[11px]"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        Client Revision
+                      </button>
+                    </>
+                  )}
 
                   {job.status !== 'completed' && job.status !== 'paid' && job.status !== 'quote_lost' && (
                     <button
@@ -523,17 +532,26 @@ export const JobsView: React.FC<JobsViewProps> = ({
                       </span>
                     )}
                   </div>
-                  <button
-                    onClick={() => {
-                      if (confirm(`Delete record for "${job.title}"?`)) {
-                        onDeleteJob(job.id);
-                      }
-                    }}
-                    className="text-slate-500 hover:text-rose-400 transition"
-                    title="Delete record"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setEditingJob(job)}
+                      className="text-slate-500 hover:text-blue-400 transition"
+                      title="Edit job details"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(`Delete record for "${job.title}"?`)) {
+                          onDeleteJob(job.id);
+                        }
+                      }}
+                      className="text-slate-500 hover:text-rose-400 transition"
+                      title="Delete record"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -813,6 +831,11 @@ export const JobsView: React.FC<JobsViewProps> = ({
             )}
           </div>
         </div>
+      )}
+
+      {/* EDIT JOB DETAILS MODAL */}
+      {editingJob && (
+        <EditJobModal key={editingJob.id} job={editingJob} onClose={() => setEditingJob(null)} onSaveJob={onSaveJob} />
       )}
     </div>
   );
