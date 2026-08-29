@@ -18,17 +18,23 @@ const BIZ_CATEGORIES: BusinessExpenseCategory[] = [
   'Other Business Expense'
 ];
 
-const PERSONAL_CATEGORIES: PersonalExpenseCategory[] = [
-  'Café & Snacks (Café / Thé / Snacks)',
-  'Gaming & Entertainment (Gaming / Loisirs)',
+const HOUSEHOLD_CATEGORIES: PersonalExpenseCategory[] = [
   'Food & Groceries (Alimentation)',
   'Housing & Rent (Loyer)',
   'Utilities & Phone (Eau, Électricité, Recharge)',
   'Family & Children (Famille / Enfants)',
   'Healthcare & Medical (Santé)',
+  'Other Household Expense'
+];
+
+const INDIVIDUAL_CATEGORIES: PersonalExpenseCategory[] = [
+  'Café & Snacks (Café / Thé / Snacks)',
+  'Gaming & Entertainment (Gaming / Loisirs)',
   'Personal Pocket Money (Loisirs & Sorties)',
   'Other Personal Expense'
 ];
+
+const PERSONAL_CATEGORIES: PersonalExpenseCategory[] = [...HOUSEHOLD_CATEGORIES, ...INDIVIDUAL_CATEGORIES];
 
 const QUICK_AMOUNTS = [10, 20, 50, 100, 200, 500];
 
@@ -254,17 +260,30 @@ export const QuickExpenseModal: React.FC<QuickExpenseModalProps> = ({
               onChange={e => setCategory(e.target.value)}
               className="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-slate-500"
             >
-              {expenseType === 'business'
-                ? BIZ_CATEGORIES.map(cat => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))
-                : PERSONAL_CATEGORIES.map(cat => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
+              {expenseType === 'business' ? (
+                BIZ_CATEGORIES.map(cat => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))
+              ) : (
+                <>
+                  <optgroup label="Household (Family)">
+                    {HOUSEHOLD_CATEGORIES.map(cat => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Personal (Just Me)">
+                    {INDIVIDUAL_CATEGORIES.map(cat => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </optgroup>
+                </>
+              )}
             </select>
           </div>
 

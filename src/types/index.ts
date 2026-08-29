@@ -32,15 +32,20 @@ export type BusinessExpenseCategory =
   | 'Other Business Expense';
 
 export type PersonalExpenseCategory =
+  // Household (shared family spending)
   | 'Food & Groceries (Alimentation)'
-  | 'Café & Snacks (Café / Thé / Snacks)'
-  | 'Gaming & Entertainment (Gaming / Loisirs)'
   | 'Housing & Rent (Loyer)'
   | 'Utilities & Phone (Eau, Électricité, Recharge)'
   | 'Family & Children (Famille / Enfants)'
   | 'Healthcare & Medical (Santé)'
+  | 'Other Household Expense'
+  // Personal (just for you)
+  | 'Café & Snacks (Café / Thé / Snacks)'
+  | 'Gaming & Entertainment (Gaming / Loisirs)'
   | 'Personal Pocket Money (Loisirs & Sorties)'
   | 'Other Personal Expense';
+
+export type PersonalExpenseScope = 'household' | 'individual';
 
 export type DebtType =
   | 'business_supplier' // e.g. Droguerie credit line
@@ -161,6 +166,8 @@ export interface FinancialMetrics {
   businessOverhead: number;     // Fuel, tools, workshop expenses
   totalBusinessCosts: number;   // directJobCosts + businessOverhead
   totalPersonalSpending: number;// Food, rent, family, medical
+  householdSpending: number;    // Family/shared personal spending (rent, groceries, kids, health...)
+  individualSpending: number;   // Just-for-you personal spending (café, gaming, pocket money...)
   totalDebtPaid: number;        // Principal & interest paid to loans/suppliers
 
   // Financial Truth Indicators

@@ -16,6 +16,7 @@ import {
 } from './cashflow';
 import { calculateNetBusinessProfit, calculateProfitMarginPercent } from './profitability';
 import { calculateTotalDebtOutstanding, countActiveDebts } from './debt';
+import { calculateHouseholdSpending, calculateIndividualSpending } from './personalExpenseScope';
 
 export * from './cashflow';
 export * from './profitability';
@@ -24,6 +25,7 @@ export * from './insights';
 export * from './acquisition';
 export * from './weeklyTracker';
 export * from './jobTiming';
+export * from './personalExpenseScope';
 
 /**
  * SINGLE SOURCE OF TRUTH FOR ALL FINANCIAL CALCULATIONS.
@@ -46,6 +48,8 @@ export function computeFinancialMetrics(
   const totalBusinessCosts = calculateTotalBusinessCosts(jobs, businessExpenses);
 
   const totalPersonalSpending = calculatePersonalSpending(personalExpenses);
+  const householdSpending = calculateHouseholdSpending(personalExpenses);
+  const individualSpending = calculateIndividualSpending(personalExpenses);
   const totalDebtPaid = calculateTotalDebtPaid(debtPayments);
 
   const netBusinessProfit = calculateNetBusinessProfit(jobs, businessExpenses);
@@ -74,6 +78,8 @@ export function computeFinancialMetrics(
     businessOverhead,
     totalBusinessCosts,
     totalPersonalSpending,
+    householdSpending,
+    individualSpending,
     totalDebtPaid,
     netBusinessProfit,
     netCashFlow,

@@ -44,7 +44,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const outflowData = [
     { name: 'Direct Job Materials', value: metrics.directJobCosts, color: '#f59e0b' },
     { name: 'Business Overhead', value: metrics.businessOverhead, color: '#d97706' },
-    { name: 'Household & Personal', value: metrics.totalPersonalSpending, color: '#f43f5e' },
+    { name: 'Household (Family)', value: metrics.householdSpending, color: '#f43f5e' },
+    { name: 'Personal (Just Me)', value: metrics.individualSpending, color: '#ec4899' },
     { name: 'Debt Repayments', value: metrics.totalDebtPaid, color: '#8b5cf6' }
   ].filter(d => d.value > 0);
 
