@@ -64,6 +64,28 @@ export async function initDb() {
       `;
 
       await sql`
+        CREATE TABLE IF NOT EXISTS job_interventions (
+          id VARCHAR(255) PRIMARY KEY,
+          job_id TEXT NOT NULL,
+          date TEXT NOT NULL,
+          reason TEXT NOT NULL,
+          resolved BOOLEAN NOT NULL DEFAULT false,
+          resolved_date TEXT,
+          notes TEXT
+        );
+      `;
+
+      await sql`
+        CREATE TABLE IF NOT EXISTS job_payments (
+          id VARCHAR(255) PRIMARY KEY,
+          job_id TEXT NOT NULL,
+          amount NUMERIC NOT NULL,
+          date TEXT NOT NULL,
+          notes TEXT
+        );
+      `;
+
+      await sql`
         CREATE TABLE IF NOT EXISTS business_expenses (
           id VARCHAR(255) PRIMARY KEY,
           title TEXT NOT NULL,
@@ -212,12 +234,15 @@ export async function saveJobDb(job) {
     `;
 
     if (job.clientName) {
-      await saveClientDb({
-        id: `cli-${Date.now()}`,
-        name: job.clientName,
-        phone: job.clientPhone,
-        acquisitionSource: job.acquisitionSource
-      });
+      const existing = await sql`SELECT id FROM clients WHERE LOWER(name) = LOWER(${job.clientName}) LIMIT 1;`;
+      if (existing.length === 0) {
+        await saveClientDb({
+          id: `cli-${Date.now()}`,
+          name: job.clientName,
+          phone: job.clientPhone,
+          acquisitionSource: job.acquisitionSource
+        });
+      }
     }
 
     return job;
@@ -270,6 +295,107 @@ export async function deleteJobDb(id) {
   const jobs = await readJson('jobs.json');
   await writeJson('jobs.json', jobs.filter(j => j.id !== id));
   return true;
+}
+
+// --- JOB INTERVENTIONS (post-completion client callbacks) ---
+export async function getJobInterventionsDb() {
+  if (sql) {
+    const rows = await sql`SELECT * FROM job_interventions ORDER BY date DESC;`;
+    return rows.map(r => ({
+      id: r.id,
+      jobId: r.job_id,
+      date: r.date,
+      reason: r.reason,
+      resolved: r.resolved,
+      resolvedDate: r.resolved_date || undefined,
+      notes: r.notes || undefined
+    }));
+  }
+
+  if (redis) {
+    const data = await redis.get('job_interventions');
+    return data || [];
+  }
+
+  return await readJson('job_interventions.json');
+}
+
+export async function saveJobInterventionDb(intervention) {
+  if (sql) {
+    await sql`
+      INSERT INTO job_interventions (id, job_id, date, reason, resolved, resolved_date, notes)
+      VALUES (
+        ${intervention.id}, ${intervention.jobId}, ${intervention.date}, ${intervention.reason},
+        ${intervention.resolved || false}, ${intervention.resolvedDate || null}, ${intervention.notes || null}
+      )
+      ON CONFLICT (id) DO UPDATE SET
+        date = EXCLUDED.date,
+        reason = EXCLUDED.reason,
+        resolved = EXCLUDED.resolved,
+        resolved_date = EXCLUDED.resolved_date,
+        notes = EXCLUDED.notes;
+    `;
+    return intervention;
+  }
+
+  if (redis) {
+    const interventions = (await redis.get('job_interventions')) || [];
+    const index = interventions.findIndex(i => i.id === intervention.id);
+    if (index >= 0) interventions[index] = intervention;
+    else interventions.unshift(intervention);
+    await redis.set('job_interventions', interventions);
+    return intervention;
+  }
+
+  const interventions = await readJson('job_interventions.json');
+  const index = interventions.findIndex(i => i.id === intervention.id);
+  if (index >= 0) interventions[index] = intervention;
+  else interventions.unshift(intervention);
+  await writeJson('job_interventions.json', interventions);
+  return intervention;
+}
+
+// --- JOB PAYMENTS ---
+export async function getJobPaymentsDb() {
+  if (sql) {
+    const rows = await sql`SELECT * FROM job_payments ORDER BY date DESC;`;
+    return rows.map(r => ({
+      id: r.id,
+      jobId: r.job_id,
+      amount: parseFloat(r.amount),
+      date: r.date,
+      notes: r.notes || undefined
+    }));
+  }
+
+  if (redis) {
+    const data = await redis.get('job_payments');
+    return data || [];
+  }
+
+  return await readJson('job_payments.json');
+}
+
+export async function saveJobPaymentDb(pay) {
+  if (sql) {
+    await sql`
+      INSERT INTO job_payments (id, job_id, amount, date, notes)
+      VALUES (${pay.id}, ${pay.jobId}, ${pay.amount}, ${pay.date}, ${pay.notes || null});
+    `;
+    return pay;
+  }
+
+  if (redis) {
+    const payments = (await redis.get('job_payments')) || [];
+    payments.unshift(pay);
+    await redis.set('job_payments', payments);
+    return pay;
+  }
+
+  const payments = await readJson('job_payments.json');
+  payments.unshift(pay);
+  await writeJson('job_payments.json', payments);
+  return pay;
 }
 
 // --- BUSINESS EXPENSES ---
@@ -618,4 +744,41 @@ export async function saveClientDb(client) {
   else clients.unshift(client);
   await writeJson('clients.json', clients);
   return client;
+}
+
+// --- CLEAR ALL DATA (testing / fresh start) ---
+export async function clearAllDataDb() {
+  if (sql) {
+    await sql`DELETE FROM job_payments;`;
+    await sql`DELETE FROM job_interventions;`;
+    await sql`DELETE FROM debt_payments;`;
+    await sql`DELETE FROM jobs;`;
+    await sql`DELETE FROM business_expenses;`;
+    await sql`DELETE FROM personal_expenses;`;
+    await sql`DELETE FROM debts;`;
+    await sql`DELETE FROM clients;`;
+    return true;
+  }
+
+  if (redis) {
+    await redis.set('jobs', []);
+    await redis.set('job_payments', []);
+    await redis.set('job_interventions', []);
+    await redis.set('business_expenses', []);
+    await redis.set('personal_expenses', []);
+    await redis.set('debts', []);
+    await redis.set('debt_payments', []);
+    await redis.set('clients', []);
+    return true;
+  }
+
+  await writeJson('jobs.json', []);
+  await writeJson('job_payments.json', []);
+  await writeJson('job_interventions.json', []);
+  await writeJson('business_expenses.json', []);
+  await writeJson('personal_expenses.json', []);
+  await writeJson('debts.json', []);
+  await writeJson('debt_payments.json', []);
+  await writeJson('clients.json', []);
+  return true;
 }

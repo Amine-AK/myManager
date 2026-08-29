@@ -5,6 +5,7 @@
 
 export type JobStatus =
   | 'quoted'             // Price quoted / Devis envoyé
+  | 'quote_lost'         // Client declined the quote / lead did not convert
   | 'in_progress'        // Active work
   | 'waiting_parts'      // Waiting for parts/equipment from another city
   | 'completed'          // Finished work
@@ -31,15 +32,20 @@ export type BusinessExpenseCategory =
   | 'Other Business Expense';
 
 export type PersonalExpenseCategory =
+  // Household (shared family spending)
   | 'Food & Groceries (Alimentation)'
-  | 'Café & Snacks (Café / Thé / Snacks)'
-  | 'Gaming & Entertainment (Gaming / Loisirs)'
   | 'Housing & Rent (Loyer)'
   | 'Utilities & Phone (Eau, Électricité, Recharge)'
   | 'Family & Children (Famille / Enfants)'
   | 'Healthcare & Medical (Santé)'
+  | 'Other Household Expense'
+  // Personal (just for you)
+  | 'Café & Snacks (Café / Thé / Snacks)'
+  | 'Gaming & Entertainment (Gaming / Loisirs)'
   | 'Personal Pocket Money (Loisirs & Sorties)'
   | 'Other Personal Expense';
+
+export type PersonalExpenseScope = 'household' | 'individual';
 
 export type DebtType =
   | 'business_supplier' // e.g. Droguerie credit line
@@ -60,6 +66,7 @@ export interface JobActivityLog {
   timestamp: string;     // ISO Date or Time string
   status: JobStatus;
   note: string;          // e.g. "Waiting for Dahua NVR part from Casablanca"
+  hoursSpent?: number;   // Actual hands-on hours worked during this session
 }
 
 export interface Job {
@@ -121,6 +128,25 @@ export interface DebtPayment {
   notes?: string;
 }
 
+export interface JobPayment {
+  id: string;
+  jobId: string;
+  amount: number;          // MAD, cash actually received on this date
+  date: string;            // ISO date YYYY-MM-DD
+  notes?: string;
+}
+
+export interface JobIntervention {
+  id: string;
+  jobId: string;
+  date: string;            // ISO date YYYY-MM-DD - when the client requested the follow-up
+  reason: string;          // e.g. "Camera stopped recording after 2 weeks"
+  resolved: boolean;
+  resolvedDate?: string;   // ISO date YYYY-MM-DD - when the follow-up visit was completed
+  hoursSpent?: number;     // Actual hands-on hours worked resolving this callback
+  notes?: string;
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -152,6 +178,8 @@ export interface FinancialMetrics {
   businessOverhead: number;     // Fuel, tools, workshop expenses
   totalBusinessCosts: number;   // directJobCosts + businessOverhead
   totalPersonalSpending: number;// Food, rent, family, medical
+  householdSpending: number;    // Family/shared personal spending (rent, groceries, kids, health...)
+  individualSpending: number;   // Just-for-you personal spending (café, gaming, pocket money...)
   totalDebtPaid: number;        // Principal & interest paid to loans/suppliers
 
   // Financial Truth Indicators
@@ -170,6 +198,13 @@ export interface FinancialMetrics {
   // Job Status Counters
   waitingPartsCount: number;
   revisionRequestedCount: number;
+  quoteLostCount: number;
+  quoteConversionRatePercent: number; // Won jobs / (Won + Lost quotes) * 100
+
+  // Post-Completion Client Callbacks
+  totalInterventions: number;         // All client-requested follow-up visits, ever
+  unresolvedInterventionsCount: number;
+  jobsWithInterventionsCount: number; // Distinct jobs that needed a callback
 }
 
 export interface FactualInsight {

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { X, Wrench, Check, User, Share2 } from 'lucide-react';
-import type { Job, JobCategory, Client, AcquisitionSource } from '../../types';
+import type { Job, JobPayment, JobCategory, Client, AcquisitionSource } from '../../types';
 
 interface QuickJobModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSaveJob: (job: Job) => Promise<void>;
+  onSaveJobPayment: (payment: JobPayment) => Promise<void>;
   clients: Client[];
 }
 
@@ -33,6 +34,7 @@ export const QuickJobModal: React.FC<QuickJobModalProps> = ({
   isOpen,
   onClose,
   onSaveJob,
+  onSaveJobPayment,
   clients
 }) => {
   const [title, setTitle] = useState('');
@@ -42,6 +44,7 @@ export const QuickJobModal: React.FC<QuickJobModalProps> = ({
   const [agreedPrice, setAgreedPrice] = useState('');
   const [paidAmount, setPaidAmount] = useState('');
   const [materialCosts, setMaterialCosts] = useState('');
+  const [hoursWorked, setHoursWorked] = useState('');
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [acquisitionSource, setAcquisitionSource] = useState<string>(DEFAULT_SOURCES[0]);
   const [customSource, setCustomSource] = useState('');
@@ -56,6 +59,7 @@ export const QuickJobModal: React.FC<QuickJobModalProps> = ({
 
     const paidNum = parseFloat(paidAmount) || 0;
     const materialNum = parseFloat(materialCosts) || 0;
+    const hoursNum = parseFloat(hoursWorked) || 0;
 
     setSubmitting(true);
     try {
@@ -63,8 +67,6 @@ export const QuickJobModal: React.FC<QuickJobModalProps> = ({
       if (paidNum >= priceNum) {
         status = 'paid';
       } else if (paidNum > 0) {
-        status = 'in_progress';
-      } else {
         status = 'in_progress';
       }
 
@@ -89,18 +91,28 @@ export const QuickJobModal: React.FC<QuickJobModalProps> = ({
             id: `log-${Date.now()}`,
             timestamp: new Date().toISOString().split('T')[0],
             status,
-            note: `Job created via source: ${finalSource}`
+            note: `Job created via source: ${finalSource}`,
+            hoursSpent: hoursNum > 0 ? hoursNum : undefined
           }
         ]
       };
 
       await onSaveJob(newJob);
+      if (paidNum > 0) {
+        await onSaveJobPayment({
+          id: `jpay-${Date.now()}`,
+          jobId: newJob.id,
+          amount: paidNum,
+          date: startDate
+        });
+      }
       setTitle('');
       setClientName('');
       setClientPhone('');
       setAgreedPrice('');
       setPaidAmount('');
       setMaterialCosts('');
+      setHoursWorked('');
       setCustomSource('');
       onClose();
     } finally {
@@ -229,6 +241,21 @@ export const QuickJobModal: React.FC<QuickJobModalProps> = ({
               placeholder="0 (e.g. cameras, droguerie, cable rolls)"
               value={materialCosts}
               onChange={e => setMaterialCosts(e.target.value)}
+              className="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm font-semibold text-slate-100 focus:outline-none focus:border-slate-500"
+            />
+          </div>
+
+          {/* Hours Worked Row */}
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1">
+              HOURS WORKED (OPTIONAL)
+            </label>
+            <input
+              type="number"
+              step="any"
+              placeholder="e.g. 7"
+              value={hoursWorked}
+              onChange={e => setHoursWorked(e.target.value)}
               className="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-sm font-semibold text-slate-100 focus:outline-none focus:border-slate-500"
             />
           </div>

@@ -2,7 +2,7 @@
 // FINANCIAL ENGINE - WEEKLY & DAILY SPENDING / SAVINGS REWARD TRACKER
 // ==========================================
 
-import type { Job, BusinessExpense, PersonalExpense } from '../../types';
+import type { JobPayment, BusinessExpense, PersonalExpense } from '../../types';
 
 export interface DailySpendingPoint {
   dayName: string;      // 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'
@@ -48,7 +48,7 @@ function getWeekRange(date: Date) {
  * Calculates daily spending breakdown and weekly cash surplus reward for a specific week offset (0 = current week, -1 = last week).
  */
 export function calculateWeeklyTracker(
-  jobs: Job[],
+  jobPayments: JobPayment[],
   businessExpenses: BusinessExpense[],
   personalExpenses: PersonalExpense[],
   weekOffset: number = 0
@@ -75,9 +75,9 @@ export function calculateWeeklyTracker(
       .filter(e => e.date === curDateStr)
       .reduce((sum, e) => sum + (e.amount || 0), 0);
 
-    const cashCollected = jobs
-      .filter(j => j.startDate === curDateStr)
-      .reduce((sum, j) => sum + (j.paidAmount || 0), 0);
+    const cashCollected = jobPayments
+      .filter(p => p.date === curDateStr)
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
 
     days.push({
       dayName: dayNames[i],

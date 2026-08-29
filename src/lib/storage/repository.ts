@@ -3,13 +3,17 @@
 // Ready for local browser storage & future Vercel Postgres / Supabase cloud sync
 // ==========================================
 
-import type { Job, BusinessExpense, PersonalExpense, DebtObligation, DebtPayment, Client } from '../../types';
+import type { Job, BusinessExpense, PersonalExpense, DebtObligation, DebtPayment, JobPayment, JobIntervention, Client } from '../../types';
 
 export interface IDataRepository {
   // Jobs
   getJobs(): Promise<Job[]>;
   saveJob(job: Job): Promise<Job>;
   deleteJob(id: string): Promise<boolean>;
+  getJobPayments(): Promise<JobPayment[]>;
+  saveJobPayment(payment: JobPayment): Promise<JobPayment>;
+  getJobInterventions(): Promise<JobIntervention[]>;
+  saveJobIntervention(intervention: JobIntervention): Promise<JobIntervention>;
 
   // Business Expenses
   getBusinessExpenses(): Promise<BusinessExpense[]>;
@@ -35,5 +39,5 @@ export interface IDataRepository {
   // Backup & Import/Export
   exportAllData(): Promise<string>; // Returns JSON string
   importAllData(jsonString: string): Promise<boolean>;
-  resetToSeedData(): Promise<void>;
+  clearAllData(): Promise<boolean>;
 }

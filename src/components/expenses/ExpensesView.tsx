@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import type { BusinessExpense, PersonalExpense } from '../../types';
+import type { FinancialMetrics, BusinessExpense, PersonalExpense } from '../../types';
+import { getPersonalExpenseScope } from '../../lib/calculations/personalExpenseScope';
 import {
   Receipt,
   Briefcase,
   Home,
+  User,
   Plus,
   Trash2,
   Calendar,
@@ -11,6 +13,7 @@ import {
 } from 'lucide-react';
 
 interface ExpensesViewProps {
+  metrics: FinancialMetrics;
   businessExpenses: BusinessExpense[];
   personalExpenses: PersonalExpense[];
   onDeleteBusinessExpense: (id: string) => Promise<void>;
@@ -19,6 +22,7 @@ interface ExpensesViewProps {
 }
 
 export const ExpensesView: React.FC<ExpensesViewProps> = ({
+  metrics,
   businessExpenses,
   personalExpenses,
   onDeleteBusinessExpense,
@@ -27,8 +31,45 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'business' | 'personal'>('business');
 
-  const totalBiz = businessExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-  const totalPersonal = personalExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  const totalBiz = metrics.businessOverhead;
+  const totalPersonal = metrics.totalPersonalSpending;
+
+  const householdExpenses = personalExpenses.filter(e => getPersonalExpenseScope(e.category) === 'household');
+  const individualExpenses = personalExpenses.filter(e => getPersonalExpenseScope(e.category) === 'individual');
+
+  const renderPersonalRow = (exp: PersonalExpense) => (
+    <div
+      key={exp.id}
+      className="flex items-center justify-between p-3 bg-slate-950/60 rounded-xl border border-slate-800/80 hover:border-slate-700 transition"
+    >
+      <div>
+        <strong className="text-slate-200 text-sm font-semibold block">{exp.title}</strong>
+        <div className="flex items-center gap-3 text-xs text-slate-400 mt-0.5">
+          <span className="flex items-center gap-1 text-slate-500">
+            <Tag className="w-3 h-3" /> {exp.category}
+          </span>
+          <span className="flex items-center gap-1 text-slate-500">
+            <Calendar className="w-3 h-3" /> {exp.date}
+          </span>
+        </div>
+      </div>
+      <div className="flex items-center gap-4">
+        <span className="text-base font-extrabold text-rose-400 font-mono">
+          -{exp.amount.toLocaleString('fr-MA')} MAD
+        </span>
+        <button
+          onClick={() => {
+            if (confirm(`Delete expense "${exp.title}"?`)) {
+              onDeletePersonalExpense(exp.id);
+            }
+          }}
+          className="text-slate-600 hover:text-rose-400 transition"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -153,45 +194,45 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
               ))
             )}
           </div>
+        ) : personalExpenses.length === 0 ? (
+          <p className="text-xs text-slate-500 py-6 text-center">No personal expenses recorded.</p>
         ) : (
-          <div className="space-y-2">
-            {personalExpenses.length === 0 ? (
-              <p className="text-xs text-slate-500 py-6 text-center">No personal expenses recorded.</p>
-            ) : (
-              personalExpenses.map(exp => (
-                <div
-                  key={exp.id}
-                  className="flex items-center justify-between p-3 bg-slate-950/60 rounded-xl border border-slate-800/80 hover:border-slate-700 transition"
-                >
-                  <div>
-                    <strong className="text-slate-200 text-sm font-semibold block">{exp.title}</strong>
-                    <div className="flex items-center gap-3 text-xs text-slate-400 mt-0.5">
-                      <span className="flex items-center gap-1 text-slate-500">
-                        <Tag className="w-3 h-3" /> {exp.category}
-                      </span>
-                      <span className="flex items-center gap-1 text-slate-500">
-                        <Calendar className="w-3 h-3" /> {exp.date}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-base font-extrabold text-rose-400 font-mono">
-                      -{exp.amount.toLocaleString('fr-MA')} MAD
-                    </span>
-                    <button
-                      onClick={() => {
-                        if (confirm(`Delete expense "${exp.title}"?`)) {
-                          onDeletePersonalExpense(exp.id);
-                        }
-                      }}
-                      className="text-slate-600 hover:text-rose-400 transition"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
+          <div className="space-y-5">
+            {/* Household (Family) Group */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Home className="w-3.5 h-3.5 text-rose-400" />
+                  Household (Family)
+                </h4>
+                <strong className="text-sm font-bold text-rose-400 font-mono">
+                  {metrics.householdSpending.toLocaleString('fr-MA')} MAD
+                </strong>
+              </div>
+              {householdExpenses.length === 0 ? (
+                <p className="text-xs text-slate-500 py-3 text-center">No household expenses recorded.</p>
+              ) : (
+                <div className="space-y-2">{householdExpenses.map(renderPersonalRow)}</div>
+              )}
+            </div>
+
+            {/* Individual (Just Me) Group */}
+            <div className="space-y-2 pt-3 border-t border-slate-800/60">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5 text-purple-400" />
+                  Personal (Just Me)
+                </h4>
+                <strong className="text-sm font-bold text-purple-400 font-mono">
+                  {metrics.individualSpending.toLocaleString('fr-MA')} MAD
+                </strong>
+              </div>
+              {individualExpenses.length === 0 ? (
+                <p className="text-xs text-slate-500 py-3 text-center">No personal-only expenses recorded.</p>
+              ) : (
+                <div className="space-y-2">{individualExpenses.map(renderPersonalRow)}</div>
+              )}
+            </div>
           </div>
         )}
       </div>

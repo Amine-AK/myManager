@@ -4,7 +4,7 @@
 // ==========================================
 
 import type { IDataRepository } from './repository';
-import type { Job, BusinessExpense, PersonalExpense, DebtObligation, DebtPayment, Client } from '../../types';
+import type { Job, BusinessExpense, PersonalExpense, DebtObligation, DebtPayment, JobPayment, JobIntervention, Client } from '../../types';
 
 const API_BASE = '/api';
 
@@ -32,6 +32,44 @@ export class JsonFileRepository implements IDataRepository {
     const res = await fetch(`${API_BASE}/jobs/${id}`, { method: 'DELETE' });
     const data = await res.json();
     return data.success;
+  }
+
+  // --- JOB PAYMENTS ---
+  async getJobPayments(): Promise<JobPayment[]> {
+    try {
+      const res = await fetch(`${API_BASE}/job-payments`);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  }
+
+  async saveJobPayment(payment: JobPayment): Promise<JobPayment> {
+    const res = await fetch(`${API_BASE}/job-payments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payment)
+    });
+    return await res.json();
+  }
+
+  // --- JOB INTERVENTIONS (post-completion client callbacks) ---
+  async getJobInterventions(): Promise<JobIntervention[]> {
+    try {
+      const res = await fetch(`${API_BASE}/job-interventions`);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  }
+
+  async saveJobIntervention(intervention: JobIntervention): Promise<JobIntervention> {
+    const res = await fetch(`${API_BASE}/job-interventions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(intervention)
+    });
+    return await res.json();
   }
 
   // --- BUSINESS EXPENSES ---
@@ -168,8 +206,14 @@ export class JsonFileRepository implements IDataRepository {
     }
   }
 
-  async resetToSeedData(): Promise<void> {
-    await fetch(`${API_BASE}/reset`, { method: 'POST' });
+  async clearAllData(): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE}/clear-all`, { method: 'POST' });
+      const result = await res.json();
+      return result.success;
+    } catch {
+      return false;
+    }
   }
 }
 

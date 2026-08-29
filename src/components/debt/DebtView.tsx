@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { DebtObligation, DebtPayment, DebtType } from '../../types';
+import type { FinancialMetrics, DebtObligation, DebtPayment, DebtType } from '../../types';
 import {
   PiggyBank,
   Plus,
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 
 interface DebtViewProps {
+  metrics: FinancialMetrics;
   debts: DebtObligation[];
   debtPayments: DebtPayment[];
   onSaveDebtObligation: (debt: DebtObligation) => Promise<void>;
@@ -20,6 +21,7 @@ interface DebtViewProps {
 }
 
 export const DebtView: React.FC<DebtViewProps> = ({
+  metrics,
   debts,
   debtPayments,
   onSaveDebtObligation,
@@ -37,7 +39,7 @@ export const DebtView: React.FC<DebtViewProps> = ({
   const [submitting, setSubmitting] = useState(false);
 
   const activeDebts = debts.filter(d => d.status === 'active');
-  const totalDebtBurden = activeDebts.reduce((sum, d) => sum + d.remainingBalance, 0);
+  const totalDebtBurden = metrics.totalDebtOutstanding;
 
   const handleAddDebt = async (e: React.FormEvent) => {
     e.preventDefault();

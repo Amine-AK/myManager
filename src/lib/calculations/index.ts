@@ -2,7 +2,7 @@
 // CENTRALIZED FINANCIAL ENGINE - SINGLE SOURCE OF TRUTH
 // ==========================================
 
-import type { Job, BusinessExpense, PersonalExpense, DebtObligation, DebtPayment, FinancialMetrics } from '../../types';
+import type { Job, BusinessExpense, PersonalExpense, DebtObligation, DebtPayment, JobIntervention, FinancialMetrics } from '../../types';
 import {
   calculateCollectedIncome,
   calculateTotalRevenueAgreed,
@@ -16,6 +16,8 @@ import {
 } from './cashflow';
 import { calculateNetBusinessProfit, calculateProfitMarginPercent } from './profitability';
 import { calculateTotalDebtOutstanding, countActiveDebts } from './debt';
+import { calculateHouseholdSpending, calculateIndividualSpending } from './personalExpenseScope';
+import { calculateInterventionSummary } from './interventions';
 
 export * from './cashflow';
 export * from './profitability';
@@ -23,6 +25,9 @@ export * from './debt';
 export * from './insights';
 export * from './acquisition';
 export * from './weeklyTracker';
+export * from './jobTiming';
+export * from './personalExpenseScope';
+export * from './interventions';
 
 /**
  * SINGLE SOURCE OF TRUTH FOR ALL FINANCIAL CALCULATIONS.
@@ -34,7 +39,8 @@ export function computeFinancialMetrics(
   businessExpenses: BusinessExpense[],
   personalExpenses: PersonalExpense[],
   debts: DebtObligation[],
-  debtPayments: DebtPayment[]
+  debtPayments: DebtPayment[],
+  jobInterventions: JobIntervention[] = []
 ): FinancialMetrics {
   const totalRevenueAgreed = calculateTotalRevenueAgreed(jobs);
   const collectedIncome = calculateCollectedIncome(jobs);
@@ -45,6 +51,8 @@ export function computeFinancialMetrics(
   const totalBusinessCosts = calculateTotalBusinessCosts(jobs, businessExpenses);
 
   const totalPersonalSpending = calculatePersonalSpending(personalExpenses);
+  const householdSpending = calculateHouseholdSpending(personalExpenses);
+  const individualSpending = calculateIndividualSpending(personalExpenses);
   const totalDebtPaid = calculateTotalDebtPaid(debtPayments);
 
   const netBusinessProfit = calculateNetBusinessProfit(jobs, businessExpenses);
@@ -60,6 +68,14 @@ export function computeFinancialMetrics(
   const waitingPartsCount = jobs.filter(j => j.status === 'waiting_parts').length;
   const revisionRequestedCount = jobs.filter(j => j.status === 'revision_requested').length;
 
+  const quoteLostCount = jobs.filter(j => j.status === 'quote_lost').length;
+  const wonJobsCount = jobs.filter(j => j.status !== 'quote_lost' && j.status !== 'quoted').length;
+  const quoteConversionRatePercent =
+    wonJobsCount + quoteLostCount > 0 ? (wonJobsCount / (wonJobsCount + quoteLostCount)) * 100 : 0;
+
+  const { totalInterventions, unresolvedInterventionsCount, jobsWithInterventionsCount } =
+    calculateInterventionSummary(jobInterventions);
+
   return {
     totalRevenueAgreed,
     collectedIncome,
@@ -68,6 +84,8 @@ export function computeFinancialMetrics(
     businessOverhead,
     totalBusinessCosts,
     totalPersonalSpending,
+    householdSpending,
+    individualSpending,
     totalDebtPaid,
     netBusinessProfit,
     netCashFlow,
@@ -77,6 +95,11 @@ export function computeFinancialMetrics(
     profitMarginPercent,
     uncollectedRatioPercent,
     waitingPartsCount,
-    revisionRequestedCount
+    revisionRequestedCount,
+    quoteLostCount,
+    quoteConversionRatePercent,
+    totalInterventions,
+    unresolvedInterventionsCount,
+    jobsWithInterventionsCount
   };
 }

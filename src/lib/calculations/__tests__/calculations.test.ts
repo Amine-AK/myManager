@@ -106,4 +106,48 @@ describe('Financial Calculation Engine - Truth Principles', () => {
     expect(metrics.availableCash).toBe(1300);
     expect(metrics.netCashFlow).toBe(1300);
   });
+
+  it('tracks lost quotes separately from won jobs and computes conversion rate', () => {
+    const mockJobs: Job[] = [
+      {
+        id: 'job-won-1',
+        title: 'CCTV Installation',
+        clientName: 'Karim',
+        category: 'CCTV Installation',
+        status: 'paid',
+        agreedPrice: 2000,
+        paidAmount: 2000,
+        materialCosts: 500,
+        startDate: '2026-08-01'
+      },
+      {
+        id: 'job-quoted-1',
+        title: 'Fiber Sharing Setup',
+        clientName: 'Fatima',
+        category: 'Fiber Sharing (Partage Fibre)',
+        status: 'quoted',
+        agreedPrice: 800,
+        paidAmount: 0,
+        materialCosts: 0,
+        startDate: '2026-08-04'
+      },
+      {
+        id: 'job-lost-1',
+        title: 'Parabole Installation',
+        clientName: 'Youssef',
+        category: 'Satellite Dish (Parabole)',
+        status: 'quote_lost',
+        agreedPrice: 500,
+        paidAmount: 0,
+        materialCosts: 0,
+        startDate: '2026-08-06'
+      }
+    ];
+
+    const metrics = computeFinancialMetrics(mockJobs, [], [], [], []);
+
+    // 1 won job vs 1 lost quote = 50% conversion (the pending 'quoted' job counts toward neither yet)
+    expect(metrics.quoteLostCount).toBe(1);
+    expect(metrics.quoteConversionRatePercent).toBe(50);
+  });
 });

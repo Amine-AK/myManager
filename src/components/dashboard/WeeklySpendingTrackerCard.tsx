@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Job, BusinessExpense, PersonalExpense } from '../../types';
+import type { JobPayment, BusinessExpense, PersonalExpense } from '../../types';
 import { calculateWeeklyTracker } from '../../lib/calculations/weeklyTracker';
 import {
   Calendar,
@@ -22,19 +22,19 @@ import {
 } from 'recharts';
 
 interface WeeklySpendingTrackerCardProps {
-  jobs: Job[];
+  jobPayments: JobPayment[];
   businessExpenses: BusinessExpense[];
   personalExpenses: PersonalExpense[];
 }
 
 export const WeeklySpendingTrackerCard: React.FC<WeeklySpendingTrackerCardProps> = ({
-  jobs,
+  jobPayments,
   businessExpenses,
   personalExpenses
 }) => {
   const [weekOffset, setWeekOffset] = useState<number>(0);
 
-  const summary = calculateWeeklyTracker(jobs, businessExpenses, personalExpenses, weekOffset);
+  const summary = calculateWeeklyTracker(jobPayments, businessExpenses, personalExpenses, weekOffset);
 
   const chartData = summary.days.map(d => ({
     day: d.dayName,
@@ -189,4 +189,3 @@ export const WeeklySpendingTrackerCard: React.FC<WeeklySpendingTrackerCardProps>
     </div>
   );
 };
-//testt

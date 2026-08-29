@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import type { Job, JobStatus, JobActivityLog } from '../../types';
+import type { Job, JobPayment, JobIntervention, JobStatus, JobActivityLog } from '../../types';
+import { computeJobDurations, calculateJobTotalHours } from '../../lib/calculations/jobTiming';
 import {
   Wrench,
   Plus,
@@ -9,25 +10,34 @@ import {
   DollarSign,
   User,
   Phone,
+  PhoneCall,
   Truck,
   RotateCcw,
   History,
   Clock,
   CheckCircle2,
+  XCircle,
+  PlayCircle,
   Share2,
   X
 } from 'lucide-react';
 
 interface JobsViewProps {
   jobs: Job[];
+  jobInterventions: JobIntervention[];
   onSaveJob: (job: Job) => Promise<void>;
+  onSaveJobPayment: (payment: JobPayment) => Promise<void>;
+  onSaveJobIntervention: (intervention: JobIntervention) => Promise<void>;
   onDeleteJob: (id: string) => Promise<void>;
   onOpenQuickJob: () => void;
 }
 
 export const JobsView: React.FC<JobsViewProps> = ({
   jobs,
+  jobInterventions,
   onSaveJob,
+  onSaveJobPayment,
+  onSaveJobIntervention,
   onDeleteJob,
   onOpenQuickJob
 }) => {
@@ -41,6 +51,16 @@ export const JobsView: React.FC<JobsViewProps> = ({
   const [showStatusModal, setShowStatusModal] = useState<Job | null>(null);
   const [newStatus, setNewStatus] = useState<JobStatus>('in_progress');
   const [statusNote, setStatusNote] = useState('');
+  const [statusHours, setStatusHours] = useState('');
+
+  // Client Callback (post-completion intervention) Modal State
+  const [showInterventionModal, setShowInterventionModal] = useState<Job | null>(null);
+  const [interventionDate, setInterventionDate] = useState(new Date().toISOString().split('T')[0]);
+  const [interventionReason, setInterventionReason] = useState('');
+
+  // Resolving a Client Callback (captures hours spent on the fix)
+  const [resolvingInterventionId, setResolvingInterventionId] = useState<string | null>(null);
+  const [resolutionHours, setResolutionHours] = useState('');
 
   const filteredJobs = jobs.filter(j => {
     const matchesSearch =
@@ -57,6 +77,7 @@ export const JobsView: React.FC<JobsViewProps> = ({
     const amount = parseFloat(collectionAmount);
     if (isNaN(amount) || amount <= 0) return;
 
+    const today = new Date().toISOString().split('T')[0];
     const newPaid = (job.paidAmount || 0) + amount;
     let jobStat = job.status;
     if (newPaid >= job.agreedPrice && jobStat !== 'revision_requested') {
@@ -65,7 +86,7 @@ export const JobsView: React.FC<JobsViewProps> = ({
 
     const newLog: JobActivityLog = {
       id: `log-${Date.now()}`,
-      timestamp: new Date().toISOString().split('T')[0],
+      timestamp: today,
       status: jobStat,
       note: `Payment collected: +${amount} MAD (Total paid: ${newPaid} MAD)`
     };
@@ -74,11 +95,17 @@ export const JobsView: React.FC<JobsViewProps> = ({
       ...job,
       paidAmount: Math.min(newPaid, job.agreedPrice),
       status: jobStat,
-      completedDate: jobStat === 'paid' ? new Date().toISOString().split('T')[0] : job.completedDate,
+      completedDate: jobStat === 'paid' ? today : job.completedDate,
       logs: [newLog, ...(job.logs || [])]
     };
 
     await onSaveJob(updatedJob);
+    await onSaveJobPayment({
+      id: `jpay-${Date.now()}`,
+      jobId: job.id,
+      amount,
+      date: today
+    });
     setCollectingJobId(null);
     setCollectionAmount('');
   };
@@ -90,32 +117,56 @@ export const JobsView: React.FC<JobsViewProps> = ({
 
     const job = showStatusModal;
     const noteText = statusNote.trim() || `Status updated to ${newStatus.replace('_', ' ')}`;
+    const hoursNum = parseFloat(statusHours) || 0;
 
     const newLog: JobActivityLog = {
       id: `log-${Date.now()}`,
       timestamp: new Date().toISOString().split('T')[0],
       status: newStatus,
-      note: noteText
+      note: noteText,
+      hoursSpent: hoursNum > 0 ? hoursNum : undefined
     };
-
-    let updatedDaysSpent = job.daysSpent || 1;
-    let updatedDaysPaused = job.daysPaused || 0;
-
-    if (newStatus === 'in_progress') updatedDaysSpent += 1;
-    if (newStatus === 'waiting_parts') updatedDaysPaused += 1;
 
     const updatedJob: Job = {
       ...job,
       status: newStatus,
       waitingReason: newStatus === 'waiting_parts' ? noteText : job.waitingReason,
-      daysSpent: updatedDaysSpent,
-      daysPaused: updatedDaysPaused,
       logs: [newLog, ...(job.logs || [])]
     };
 
     await onSaveJob(updatedJob);
     setShowStatusModal(null);
     setStatusNote('');
+    setStatusHours('');
+  };
+
+  // Handle Logging a Post-Completion Client Callback
+  const handleLogIntervention = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!showInterventionModal || !interventionReason.trim()) return;
+
+    await onSaveJobIntervention({
+      id: `int-${Date.now()}`,
+      jobId: showInterventionModal.id,
+      date: interventionDate,
+      reason: interventionReason.trim(),
+      resolved: false
+    });
+
+    setShowInterventionModal(null);
+    setInterventionReason('');
+  };
+
+  const handleResolveIntervention = async (intervention: JobIntervention) => {
+    const hoursNum = parseFloat(resolutionHours) || 0;
+    await onSaveJobIntervention({
+      ...intervention,
+      resolved: true,
+      resolvedDate: new Date().toISOString().split('T')[0],
+      hoursSpent: hoursNum > 0 ? hoursNum : undefined
+    });
+    setResolvingInterventionId(null);
+    setResolutionHours('');
   };
 
   return (
@@ -161,11 +212,13 @@ export const JobsView: React.FC<JobsViewProps> = ({
         <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs overflow-x-auto">
           {[
             { id: 'all', label: 'All' },
+            { id: 'quoted', label: 'Quoted' },
             { id: 'in_progress', label: 'En Cours' },
             { id: 'waiting_parts', label: 'Waiting Parts' },
             { id: 'revision_requested', label: 'Revision' },
             { id: 'completed', label: 'Completed' },
-            { id: 'paid', label: 'Paid' }
+            { id: 'paid', label: 'Paid' },
+            { id: 'quote_lost', label: 'Lost' }
           ].map(item => (
             <button
               key={item.id}
@@ -191,6 +244,11 @@ export const JobsView: React.FC<JobsViewProps> = ({
         ) : (
           filteredJobs.map(job => {
             const uncollected = (job.agreedPrice || 0) - (job.paidAmount || 0);
+            const { daysSpent, daysPaused } = computeJobDurations(job);
+            const jobCallbacks = jobInterventions.filter(i => i.jobId === job.id);
+            const openCallbacks = jobCallbacks.filter(i => !i.resolved).length;
+            const canLogCallback = job.status === 'completed' || job.status === 'paid';
+            const totalHours = calculateJobTotalHours(job, jobInterventions);
 
             return (
               <div
@@ -232,11 +290,16 @@ export const JobsView: React.FC<JobsViewProps> = ({
                         ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
                         : job.status === 'revision_requested'
                         ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                        : job.status === 'quote_lost'
+                        ? 'bg-slate-700/40 text-slate-400 border border-slate-600/40'
+                        : job.status === 'quoted'
+                        ? 'bg-slate-500/20 text-slate-300 border border-slate-500/30'
                         : 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20'
                     }`}
                   >
                     {job.status === 'waiting_parts' && <Truck className="w-3 h-3" />}
                     {job.status === 'revision_requested' && <RotateCcw className="w-3 h-3" />}
+                    {job.status === 'quote_lost' && <XCircle className="w-3 h-3" />}
                     {job.status.replace('_', ' ')}
                   </span>
                 </div>
@@ -258,6 +321,17 @@ export const JobsView: React.FC<JobsViewProps> = ({
                     <RotateCcw className="w-4 h-4 text-amber-400 shrink-0" />
                     <div>
                       <strong className="font-bold">Client Requested Revision:</strong> Re-opened for modifications.
+                    </div>
+                  </div>
+                )}
+
+                {/* Open Client Callback Banner if applicable */}
+                {openCallbacks > 0 && (
+                  <div className="p-2.5 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs text-rose-200 flex items-center gap-2">
+                    <PhoneCall className="w-4 h-4 text-rose-400 shrink-0" />
+                    <div>
+                      <strong className="font-bold">{openCallbacks} Open Client Callback{openCallbacks > 1 ? 's' : ''}:</strong>{' '}
+                      Client requested a follow-up visit after delivery. See History for details.
                     </div>
                   </div>
                 )}
@@ -338,11 +412,42 @@ export const JobsView: React.FC<JobsViewProps> = ({
 
                 {/* Status & Revision Controls */}
                 <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-800 text-xs">
+                  {job.status === 'quoted' && (
+                    <>
+                      <button
+                        onClick={() => {
+                          setShowStatusModal(job);
+                          setNewStatus('in_progress');
+                          setStatusNote('Quote accepted, work started.');
+                          setStatusHours('');
+                        }}
+                        className="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-lg font-semibold flex items-center gap-1 transition text-[11px]"
+                      >
+                        <PlayCircle className="w-3 h-3" />
+                        Start Work
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setShowStatusModal(job);
+                          setNewStatus('quote_lost');
+                          setStatusNote('');
+                          setStatusHours('');
+                        }}
+                        className="px-2.5 py-1 bg-slate-700/30 hover:bg-slate-700/50 text-slate-300 border border-slate-600/40 rounded-lg font-semibold flex items-center gap-1 transition text-[11px]"
+                      >
+                        <XCircle className="w-3 h-3" />
+                        Mark Quote Lost
+                      </button>
+                    </>
+                  )}
+
                   <button
                     onClick={() => {
                       setShowStatusModal(job);
                       setNewStatus('waiting_parts');
                       setStatusNote('');
+                      setStatusHours('');
                     }}
                     className="px-2.5 py-1 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded-lg font-semibold flex items-center gap-1 transition text-[11px]"
                   >
@@ -355,6 +460,7 @@ export const JobsView: React.FC<JobsViewProps> = ({
                       setShowStatusModal(job);
                       setNewStatus('revision_requested');
                       setStatusNote('');
+                      setStatusHours('');
                     }}
                     className="px-2.5 py-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-lg font-semibold flex items-center gap-1 transition text-[11px]"
                   >
@@ -362,17 +468,32 @@ export const JobsView: React.FC<JobsViewProps> = ({
                     Client Revision
                   </button>
 
-                  {job.status !== 'completed' && job.status !== 'paid' && (
+                  {job.status !== 'completed' && job.status !== 'paid' && job.status !== 'quote_lost' && (
                     <button
                       onClick={() => {
                         setShowStatusModal(job);
                         setNewStatus('completed');
                         setStatusNote('Work completed successfully.');
+                        setStatusHours('');
                       }}
                       className="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-lg font-semibold flex items-center gap-1 transition text-[11px]"
                     >
                       <CheckCircle2 className="w-3 h-3" />
                       Mark Completed
+                    </button>
+                  )}
+
+                  {canLogCallback && (
+                    <button
+                      onClick={() => {
+                        setShowInterventionModal(job);
+                        setInterventionDate(new Date().toISOString().split('T')[0]);
+                        setInterventionReason('');
+                      }}
+                      className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-lg font-semibold flex items-center gap-1 transition text-[11px]"
+                    >
+                      <PhoneCall className="w-3 h-3" />
+                      Log Client Callback
                     </button>
                   )}
 
@@ -382,18 +503,25 @@ export const JobsView: React.FC<JobsViewProps> = ({
                     title="View activity history log"
                   >
                     <History className="w-3 h-3" />
-                    History ({job.logs?.length || 0})
+                    History ({job.logs?.length || 0}
+                    {jobCallbacks.length > 0 ? ` + ${jobCallbacks.length} callback${jobCallbacks.length > 1 ? 's' : ''}` : ''})
                   </button>
                 </div>
 
                 {/* Footer: Date & Delete */}
                 <div className="flex items-center justify-between text-xs text-slate-500 pt-1 border-t border-slate-800/60">
-                  <div className="flex items-center gap-3 text-[11px]">
+                  <div className="flex flex-wrap items-center gap-3 text-[11px]">
                     <span>Start: {job.startDate}</span>
                     <span className="flex items-center gap-1 text-slate-400">
                       <Clock className="w-3 h-3 text-slate-500" />
-                      Work: {job.daysSpent || 1}d | Paused: {job.daysPaused || 0}d
+                      Work: {daysSpent}d | Paused: {daysPaused}d
                     </span>
+                    {totalHours > 0 && (
+                      <span className="flex items-center gap-1 font-bold text-emerald-400">
+                        <Clock className="w-3 h-3" />
+                        Total Time: {totalHours}h
+                      </span>
+                    )}
                   </div>
                   <button
                     onClick={() => {
@@ -438,11 +566,13 @@ export const JobsView: React.FC<JobsViewProps> = ({
                   onChange={e => setNewStatus(e.target.value as JobStatus)}
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 font-bold"
                 >
+                  <option value="quoted">Quoted (Awaiting Client Decision)</option>
                   <option value="in_progress">En Cours (Active Work)</option>
                   <option value="waiting_parts">Waiting Parts / Equipment (Another city)</option>
                   <option value="revision_requested">Client Revision Requested</option>
                   <option value="completed">Completed (Work Finished)</option>
                   <option value="paid">Paid & Closed</option>
+                  <option value="quote_lost">Quote Lost (Client Declined)</option>
                 </select>
               </div>
 
@@ -452,6 +582,8 @@ export const JobsView: React.FC<JobsViewProps> = ({
                     ? 'REASON / PARTS SOURCE (e.g. Waiting Dahua camera from Casablanca)'
                     : newStatus === 'revision_requested'
                     ? 'CLIENT MODIFICATION NOTE (e.g. Client requested angle adjustment)'
+                    : newStatus === 'quote_lost'
+                    ? 'REASON CLIENT DECLINED (e.g. Price too high, chose another technician)'
                     : 'STATUS NOTE'}
                 </label>
                 <textarea
@@ -460,6 +592,20 @@ export const JobsView: React.FC<JobsViewProps> = ({
                   placeholder="Describe the reason or activity update..."
                   value={statusNote}
                   onChange={e => setStatusNote(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-400 mb-1 font-semibold">
+                  HOURS SPENT ON THIS SESSION (OPTIONAL)
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  placeholder="e.g. 1"
+                  value={statusHours}
+                  onChange={e => setStatusHours(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:outline-none"
                 />
               </div>
@@ -477,6 +623,72 @@ export const JobsView: React.FC<JobsViewProps> = ({
                   className="w-1/2 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl"
                 >
                   Save Status
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* LOG CLIENT CALLBACK MODAL (post-completion follow-up request) */}
+      {showInterventionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-5 text-slate-100 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="font-bold text-base flex items-center gap-2">
+                <PhoneCall className="w-4 h-4 text-rose-400" />
+                Log Client Callback
+              </h3>
+              <button
+                onClick={() => setShowInterventionModal(null)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleLogIntervention} className="space-y-3 text-xs">
+              <p className="text-slate-400">
+                For a follow-up visit the client requested after "{showInterventionModal.title}" was already delivered.
+              </p>
+
+              <div>
+                <label className="block text-slate-400 mb-1 font-semibold">DATE REQUESTED</label>
+                <input
+                  type="date"
+                  value={interventionDate}
+                  onChange={e => setInterventionDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-400 mb-1 font-semibold">
+                  REASON (e.g. Camera stopped recording, cable came loose)
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  placeholder="Describe why the client called back..."
+                  value={interventionReason}
+                  onChange={e => setInterventionReason(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowInterventionModal(null)}
+                  className="w-1/2 py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="w-1/2 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl"
+                >
+                  Save Callback
                 </button>
               </div>
             </form>
@@ -515,10 +727,90 @@ export const JobsView: React.FC<JobsViewProps> = ({
                       <span className="text-slate-500">{log.timestamp}</span>
                     </div>
                     <p className="text-slate-300 text-xs">{log.note}</p>
+                    {log.hoursSpent ? (
+                      <p className="text-[10px] text-emerald-400 font-bold">{log.hoursSpent}h logged</p>
+                    ) : null}
                   </div>
                 ))
               )}
             </div>
+
+            {/* Client Callbacks Section */}
+            {jobInterventions.filter(i => i.jobId === selectedJobForLogs.id).length > 0 && (
+              <div className="space-y-3 text-xs pt-3 border-t border-slate-800">
+                <h4 className="font-bold text-rose-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                  <PhoneCall className="w-3.5 h-3.5" />
+                  Client Callbacks
+                </h4>
+                {jobInterventions
+                  .filter(i => i.jobId === selectedJobForLogs.id)
+                  .map(intervention => (
+                    <div
+                      key={intervention.id}
+                      className={`p-3 rounded-xl border space-y-1.5 ${
+                        intervention.resolved
+                          ? 'bg-slate-950/80 border-slate-800'
+                          : 'bg-rose-500/10 border-rose-500/30'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span
+                          className={`font-extrabold uppercase ${
+                            intervention.resolved ? 'text-slate-400' : 'text-rose-300'
+                          }`}
+                        >
+                          {intervention.resolved ? 'Resolved' : 'Open'}
+                        </span>
+                        <span className="text-slate-500">{intervention.date}</span>
+                      </div>
+                      <p className="text-slate-300 text-xs">{intervention.reason}</p>
+                      {intervention.resolved ? (
+                        <p className="text-[10px] text-slate-500">
+                          Resolved on {intervention.resolvedDate}
+                          {intervention.hoursSpent ? ` • ${intervention.hoursSpent}h` : ''}
+                        </p>
+                      ) : resolvingInterventionId === intervention.id ? (
+                        <div className="mt-1 flex items-center gap-2">
+                          <input
+                            type="number"
+                            step="any"
+                            placeholder="Hours (optional)"
+                            value={resolutionHours}
+                            onChange={e => setResolutionHours(e.target.value)}
+                            className="w-full px-2.5 py-1.5 bg-slate-950 border border-emerald-500 rounded-lg text-[11px] font-bold text-emerald-400 focus:outline-none"
+                          />
+                          <button
+                            onClick={() => handleResolveIntervention(intervention)}
+                            className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-[11px] transition whitespace-nowrap"
+                          >
+                            Confirm
+                          </button>
+                          <button
+                            onClick={() => {
+                              setResolvingInterventionId(null);
+                              setResolutionHours('');
+                            }}
+                            className="px-1.5 text-slate-400 hover:text-white text-[11px]"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setResolvingInterventionId(intervention.id);
+                            setResolutionHours('');
+                          }}
+                          className="mt-1 px-2.5 py-1 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/40 font-bold rounded-lg transition text-[11px] flex items-center gap-1"
+                        >
+                          <CheckCircle2 className="w-3 h-3" />
+                          Mark Resolved
+                        </button>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            )}
           </div>
         </div>
       )}
