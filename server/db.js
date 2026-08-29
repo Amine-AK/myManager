@@ -64,6 +64,16 @@ export async function initDb() {
       `;
 
       await sql`
+        CREATE TABLE IF NOT EXISTS job_payments (
+          id VARCHAR(255) PRIMARY KEY,
+          job_id TEXT NOT NULL,
+          amount NUMERIC NOT NULL,
+          date TEXT NOT NULL,
+          notes TEXT
+        );
+      `;
+
+      await sql`
         CREATE TABLE IF NOT EXISTS business_expenses (
           id VARCHAR(255) PRIMARY KEY,
           title TEXT NOT NULL,
@@ -273,6 +283,49 @@ export async function deleteJobDb(id) {
   const jobs = await readJson('jobs.json');
   await writeJson('jobs.json', jobs.filter(j => j.id !== id));
   return true;
+}
+
+// --- JOB PAYMENTS ---
+export async function getJobPaymentsDb() {
+  if (sql) {
+    const rows = await sql`SELECT * FROM job_payments ORDER BY date DESC;`;
+    return rows.map(r => ({
+      id: r.id,
+      jobId: r.job_id,
+      amount: parseFloat(r.amount),
+      date: r.date,
+      notes: r.notes || undefined
+    }));
+  }
+
+  if (redis) {
+    const data = await redis.get('job_payments');
+    return data || [];
+  }
+
+  return await readJson('job_payments.json');
+}
+
+export async function saveJobPaymentDb(pay) {
+  if (sql) {
+    await sql`
+      INSERT INTO job_payments (id, job_id, amount, date, notes)
+      VALUES (${pay.id}, ${pay.jobId}, ${pay.amount}, ${pay.date}, ${pay.notes || null});
+    `;
+    return pay;
+  }
+
+  if (redis) {
+    const payments = (await redis.get('job_payments')) || [];
+    payments.unshift(pay);
+    await redis.set('job_payments', payments);
+    return pay;
+  }
+
+  const payments = await readJson('job_payments.json');
+  payments.unshift(pay);
+  await writeJson('job_payments.json', payments);
+  return pay;
 }
 
 // --- BUSINESS EXPENSES ---

@@ -1,5 +1,5 @@
 import React from 'react';
-import type { FinancialMetrics, FactualInsight, Job, DebtObligation, BusinessExpense, PersonalExpense } from '../../types';
+import type { FinancialMetrics, FactualInsight, Job, JobPayment, DebtObligation, BusinessExpense, PersonalExpense } from '../../types';
 import {
   Wallet,
   TrendingUp,
@@ -20,6 +20,7 @@ interface DashboardViewProps {
   metrics: FinancialMetrics;
   insights: FactualInsight[];
   jobs: Job[];
+  jobPayments: JobPayment[];
   debts: DebtObligation[];
   businessExpenses: BusinessExpense[];
   personalExpenses: PersonalExpense[];
@@ -32,6 +33,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   metrics,
   insights,
   jobs,
+  jobPayments,
   businessExpenses,
   personalExpenses,
   onOpenQuickJob,
@@ -265,7 +267,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       {/* SECTION: WEEKLY SPENDING & REWARD TRACKER */}
       <WeeklySpendingTrackerCard
-        jobs={jobs}
+        jobPayments={jobPayments}
         businessExpenses={businessExpenses}
         personalExpenses={personalExpenses}
       />

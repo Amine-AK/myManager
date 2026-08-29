@@ -12,7 +12,6 @@ import {
   BarChart3,
   Receipt,
   PiggyBank,
-  Globe,
   Lock
 } from 'lucide-react';
 
@@ -23,8 +22,6 @@ interface HeaderNavProps {
   onOpenQuickExpense: () => void;
   onOpenQuickJob: () => void;
   onOpenQuickDebtPayment: () => void;
-  language: 'FR' | 'EN' | 'AR';
-  setLanguage: (lang: 'FR' | 'EN' | 'AR') => void;
   onLogout?: () => void;
 }
 
@@ -35,8 +32,6 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
   onOpenQuickExpense,
   onOpenQuickJob,
   onOpenQuickDebtPayment,
-  language,
-  setLanguage,
   onLogout
 }) => {
   return (
@@ -76,29 +71,6 @@ export const HeaderNav: React.FC<HeaderNavProps> = ({
                 <strong className="text-amber-400 font-bold">
                   {metrics.uncollectedRevenue.toLocaleString('fr-MA')} MAD
                 </strong>
-              </div>
-
-              {/* Language Selector */}
-              <div className="flex items-center gap-0.5 bg-slate-900 px-1.5 py-0.5 rounded-lg border border-slate-800">
-                <Globe className="w-3 h-3 text-slate-400 hidden sm:inline" />
-                <button
-                  onClick={() => setLanguage('FR')}
-                  className={`text-[9px] sm:text-[10px] font-bold px-1 rounded ${language === 'FR' ? 'bg-emerald-500 text-slate-950' : 'text-slate-400'}`}
-                >
-                  FR
-                </button>
-                <button
-                  onClick={() => setLanguage('EN')}
-                  className={`text-[9px] sm:text-[10px] font-bold px-1 rounded ${language === 'EN' ? 'bg-emerald-500 text-slate-950' : 'text-slate-400'}`}
-                >
-                  EN
-                </button>
-                <button
-                  onClick={() => setLanguage('AR')}
-                  className={`text-[9px] sm:text-[10px] font-bold px-1 rounded ${language === 'AR' ? 'bg-emerald-500 text-slate-950' : 'text-slate-400'}`}
-                >
-                  عربي
-                </button>
               </div>
 
               {/* Lock / Logout Button */}

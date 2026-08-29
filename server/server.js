@@ -5,6 +5,8 @@ import {
   getJobsDb,
   saveJobDb,
   deleteJobDb,
+  getJobPaymentsDb,
+  saveJobPaymentDb,
   getBusinessExpensesDb,
   saveBusinessExpenseDb,
   deleteBusinessExpenseDb,
@@ -52,6 +54,25 @@ app.delete('/api/jobs/:id', async (req, res) => {
   try {
     await deleteJobDb(req.params.id);
     res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- JOB PAYMENTS ---
+app.get('/api/job-payments', async (req, res) => {
+  try {
+    const payments = await getJobPaymentsDb();
+    res.json(payments);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/job-payments', async (req, res) => {
+  try {
+    const payment = await saveJobPaymentDb(req.body);
+    res.json(payment);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -185,6 +206,7 @@ app.get('/api/export', async (req, res) => {
       version: '1.0',
       exportedAt: new Date().toISOString(),
       jobs: await getJobsDb(),
+      jobPayments: await getJobPaymentsDb(),
       businessExpenses: await getBusinessExpensesDb(),
       personalExpenses: await getPersonalExpensesDb(),
       debts: await getDebtsDb(),
@@ -202,6 +224,9 @@ app.post('/api/import', async (req, res) => {
     const data = req.body;
     if (data.jobs) {
       for (const j of data.jobs) await saveJobDb(j);
+    }
+    if (data.jobPayments) {
+      for (const p of data.jobPayments) await saveJobPaymentDb(p);
     }
     if (data.businessExpenses) {
       for (const e of data.businessExpenses) await saveBusinessExpenseDb(e);

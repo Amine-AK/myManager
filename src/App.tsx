@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type {
   Job,
+  JobPayment,
   BusinessExpense,
   PersonalExpense,
   DebtObligation,
@@ -30,7 +31,6 @@ export function App() {
 
   // Navigation State
   const [activeTab, setActiveTab] = useState<'dashboard' | 'jobs' | 'expenses' | 'debts' | 'print'>('dashboard');
-  const [language, setLanguage] = useState<'FR' | 'EN' | 'AR'>('FR');
 
   // Modal Visibility States
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
@@ -39,6 +39,7 @@ export function App() {
 
   // Entities Data State
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobPayments, setJobPayments] = useState<JobPayment[]>([]);
   const [businessExpenses, setBusinessExpenses] = useState<BusinessExpense[]>([]);
   const [personalExpenses, setPersonalExpenses] = useState<PersonalExpense[]>([]);
   const [debts, setDebts] = useState<DebtObligation[]>([]);
@@ -49,8 +50,9 @@ export function App() {
   // Load dataset from repository
   const loadData = useCallback(async () => {
     try {
-      const [j, be, pe, d, dp, c] = await Promise.all([
+      const [j, jp, be, pe, d, dp, c] = await Promise.all([
         repository.getJobs(),
+        repository.getJobPayments(),
         repository.getBusinessExpenses(),
         repository.getPersonalExpenses(),
         repository.getDebtObligations(),
@@ -58,6 +60,7 @@ export function App() {
         repository.getClients()
       ]);
       setJobs(j);
+      setJobPayments(jp);
       setBusinessExpenses(be);
       setPersonalExpenses(pe);
       setDebts(d);
@@ -92,6 +95,11 @@ export function App() {
 
   const handleDeleteJob = async (id: string) => {
     await repository.deleteJob(id);
+    await loadData();
+  };
+
+  const handleSaveJobPayment = async (payment: JobPayment) => {
+    await repository.saveJobPayment(payment);
     await loadData();
   };
 
@@ -169,7 +177,7 @@ export function App() {
   }
 
   return (
-    <div className={`min-h-screen bg-slate-950 text-slate-100 ${language === 'AR' ? 'rtl' : 'ltr'}`}>
+    <div className="min-h-screen bg-slate-950 text-slate-100">
       {/* Persistent Header with Available Cash Indicator */}
       <HeaderNav
         metrics={metrics}
@@ -178,8 +186,6 @@ export function App() {
         onOpenQuickExpense={() => setIsExpenseModalOpen(true)}
         onOpenQuickJob={() => setIsJobModalOpen(true)}
         onOpenQuickDebtPayment={() => setIsDebtModalOpen(true)}
-        language={language}
-        setLanguage={setLanguage}
         onLogout={handleLogout}
       />
 
@@ -190,6 +196,7 @@ export function App() {
             metrics={metrics}
             insights={insights}
             jobs={jobs}
+            jobPayments={jobPayments}
             debts={debts}
             businessExpenses={businessExpenses}
             personalExpenses={personalExpenses}
@@ -203,6 +210,7 @@ export function App() {
           <JobsView
             jobs={jobs}
             onSaveJob={handleSaveJob}
+            onSaveJobPayment={handleSaveJobPayment}
             onDeleteJob={handleDeleteJob}
             onOpenQuickJob={() => setIsJobModalOpen(true)}
           />
@@ -210,6 +218,7 @@ export function App() {
 
         {activeTab === 'expenses' && (
           <ExpensesView
+            metrics={metrics}
             businessExpenses={businessExpenses}
             personalExpenses={personalExpenses}
             onDeleteBusinessExpense={handleDeleteBusinessExpense}
@@ -220,6 +229,7 @@ export function App() {
 
         {activeTab === 'debts' && (
           <DebtView
+            metrics={metrics}
             debts={debts}
             debtPayments={debtPayments}
             onSaveDebtObligation={handleSaveDebtObligation}
@@ -254,6 +264,7 @@ export function App() {
         isOpen={isJobModalOpen}
         onClose={() => setIsJobModalOpen(false)}
         onSaveJob={handleSaveJob}
+        onSaveJobPayment={handleSaveJobPayment}
         clients={clients}
       />
 

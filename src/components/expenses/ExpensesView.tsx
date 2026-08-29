@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { BusinessExpense, PersonalExpense } from '../../types';
+import type { FinancialMetrics, BusinessExpense, PersonalExpense } from '../../types';
 import {
   Receipt,
   Briefcase,
@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 
 interface ExpensesViewProps {
+  metrics: FinancialMetrics;
   businessExpenses: BusinessExpense[];
   personalExpenses: PersonalExpense[];
   onDeleteBusinessExpense: (id: string) => Promise<void>;
@@ -19,6 +20,7 @@ interface ExpensesViewProps {
 }
 
 export const ExpensesView: React.FC<ExpensesViewProps> = ({
+  metrics,
   businessExpenses,
   personalExpenses,
   onDeleteBusinessExpense,
@@ -27,8 +29,8 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'business' | 'personal'>('business');
 
-  const totalBiz = businessExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-  const totalPersonal = personalExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  const totalBiz = metrics.businessOverhead;
+  const totalPersonal = metrics.totalPersonalSpending;
 
   return (
     <div className="space-y-6">

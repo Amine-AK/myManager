@@ -5,6 +5,7 @@
 
 export type JobStatus =
   | 'quoted'             // Price quoted / Devis envoyé
+  | 'quote_lost'         // Client declined the quote / lead did not convert
   | 'in_progress'        // Active work
   | 'waiting_parts'      // Waiting for parts/equipment from another city
   | 'completed'          // Finished work
@@ -121,6 +122,14 @@ export interface DebtPayment {
   notes?: string;
 }
 
+export interface JobPayment {
+  id: string;
+  jobId: string;
+  amount: number;          // MAD, cash actually received on this date
+  date: string;            // ISO date YYYY-MM-DD
+  notes?: string;
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -170,6 +179,8 @@ export interface FinancialMetrics {
   // Job Status Counters
   waitingPartsCount: number;
   revisionRequestedCount: number;
+  quoteLostCount: number;
+  quoteConversionRatePercent: number; // Won jobs / (Won + Lost quotes) * 100
 }
 
 export interface FactualInsight {

@@ -23,6 +23,7 @@ export * from './debt';
 export * from './insights';
 export * from './acquisition';
 export * from './weeklyTracker';
+export * from './jobTiming';
 
 /**
  * SINGLE SOURCE OF TRUTH FOR ALL FINANCIAL CALCULATIONS.
@@ -60,6 +61,11 @@ export function computeFinancialMetrics(
   const waitingPartsCount = jobs.filter(j => j.status === 'waiting_parts').length;
   const revisionRequestedCount = jobs.filter(j => j.status === 'revision_requested').length;
 
+  const quoteLostCount = jobs.filter(j => j.status === 'quote_lost').length;
+  const wonJobsCount = jobs.filter(j => j.status !== 'quote_lost' && j.status !== 'quoted').length;
+  const quoteConversionRatePercent =
+    wonJobsCount + quoteLostCount > 0 ? (wonJobsCount / (wonJobsCount + quoteLostCount)) * 100 : 0;
+
   return {
     totalRevenueAgreed,
     collectedIncome,
@@ -77,6 +83,8 @@ export function computeFinancialMetrics(
     profitMarginPercent,
     uncollectedRatioPercent,
     waitingPartsCount,
-    revisionRequestedCount
+    revisionRequestedCount,
+    quoteLostCount,
+    quoteConversionRatePercent
   };
 }

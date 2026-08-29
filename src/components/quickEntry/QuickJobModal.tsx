@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { X, Wrench, Check, User, Share2 } from 'lucide-react';
-import type { Job, JobCategory, Client, AcquisitionSource } from '../../types';
+import type { Job, JobPayment, JobCategory, Client, AcquisitionSource } from '../../types';
 
 interface QuickJobModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSaveJob: (job: Job) => Promise<void>;
+  onSaveJobPayment: (payment: JobPayment) => Promise<void>;
   clients: Client[];
 }
 
@@ -33,6 +34,7 @@ export const QuickJobModal: React.FC<QuickJobModalProps> = ({
   isOpen,
   onClose,
   onSaveJob,
+  onSaveJobPayment,
   clients
 }) => {
   const [title, setTitle] = useState('');
@@ -64,8 +66,6 @@ export const QuickJobModal: React.FC<QuickJobModalProps> = ({
         status = 'paid';
       } else if (paidNum > 0) {
         status = 'in_progress';
-      } else {
-        status = 'in_progress';
       }
 
       const finalSource = acquisitionSource === 'Custom' ? customSource.trim() || 'Direct' : acquisitionSource;
@@ -95,6 +95,14 @@ export const QuickJobModal: React.FC<QuickJobModalProps> = ({
       };
 
       await onSaveJob(newJob);
+      if (paidNum > 0) {
+        await onSaveJobPayment({
+          id: `jpay-${Date.now()}`,
+          jobId: newJob.id,
+          amount: paidNum,
+          date: startDate
+        });
+      }
       setTitle('');
       setClientName('');
       setClientPhone('');

@@ -4,7 +4,7 @@
 // ==========================================
 
 import type { IDataRepository } from './repository';
-import type { Job, BusinessExpense, PersonalExpense, DebtObligation, DebtPayment, Client } from '../../types';
+import type { Job, BusinessExpense, PersonalExpense, DebtObligation, DebtPayment, JobPayment, Client } from '../../types';
 
 const API_BASE = '/api';
 
@@ -32,6 +32,25 @@ export class JsonFileRepository implements IDataRepository {
     const res = await fetch(`${API_BASE}/jobs/${id}`, { method: 'DELETE' });
     const data = await res.json();
     return data.success;
+  }
+
+  // --- JOB PAYMENTS ---
+  async getJobPayments(): Promise<JobPayment[]> {
+    try {
+      const res = await fetch(`${API_BASE}/job-payments`);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  }
+
+  async saveJobPayment(payment: JobPayment): Promise<JobPayment> {
+    const res = await fetch(`${API_BASE}/job-payments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payment)
+    });
+    return await res.json();
   }
 
   // --- BUSINESS EXPENSES ---
@@ -166,10 +185,6 @@ export class JsonFileRepository implements IDataRepository {
     } catch {
       return false;
     }
-  }
-
-  async resetToSeedData(): Promise<void> {
-    await fetch(`${API_BASE}/reset`, { method: 'POST' });
   }
 }
 

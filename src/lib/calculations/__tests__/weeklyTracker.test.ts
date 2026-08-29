@@ -1,20 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { calculateWeeklyTracker } from '../weeklyTracker';
-import type { Job, BusinessExpense, PersonalExpense } from '../../../types';
+import type { JobPayment, BusinessExpense, PersonalExpense } from '../../../types';
 
 describe('Weekly & Daily Spending Tracker Engine', () => {
   it('correctly groups daily spending and computes net weekly cash surplus reward', () => {
-    const mockJobs: Job[] = [
+    const mockJobPayments: JobPayment[] = [
       {
-        id: 'j-1',
-        title: 'CCTV Installation',
-        clientName: 'Hassan',
-        category: 'CCTV Installation',
-        status: 'paid',
-        agreedPrice: 2000,
-        paidAmount: 2000,
-        materialCosts: 500,
-        startDate: new Date().toISOString().split('T')[0] // today
+        id: 'jpay-1',
+        jobId: 'j-1',
+        amount: 2000,
+        date: new Date().toISOString().split('T')[0] // today
       }
     ];
 
@@ -38,7 +33,7 @@ describe('Weekly & Daily Spending Tracker Engine', () => {
       }
     ];
 
-    const summary = calculateWeeklyTracker(mockJobs, mockBusinessExpenses, mockPersonalExpenses, 0);
+    const summary = calculateWeeklyTracker(mockJobPayments, mockBusinessExpenses, mockPersonalExpenses, 0);
 
     expect(summary.totalWeeklyIncome).toBe(2000);
     expect(summary.totalWorkSpent).toBe(150);

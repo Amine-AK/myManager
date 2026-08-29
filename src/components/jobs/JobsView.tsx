@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import type { Job, JobStatus, JobActivityLog } from '../../types';
+import type { Job, JobPayment, JobStatus, JobActivityLog } from '../../types';
+import { computeJobDurations } from '../../lib/calculations/jobTiming';
 import {
   Wrench,
   Plus,
@@ -14,6 +15,8 @@ import {
   History,
   Clock,
   CheckCircle2,
+  XCircle,
+  PlayCircle,
   Share2,
   X
 } from 'lucide-react';
@@ -21,6 +24,7 @@ import {
 interface JobsViewProps {
   jobs: Job[];
   onSaveJob: (job: Job) => Promise<void>;
+  onSaveJobPayment: (payment: JobPayment) => Promise<void>;
   onDeleteJob: (id: string) => Promise<void>;
   onOpenQuickJob: () => void;
 }
@@ -28,6 +32,7 @@ interface JobsViewProps {
 export const JobsView: React.FC<JobsViewProps> = ({
   jobs,
   onSaveJob,
+  onSaveJobPayment,
   onDeleteJob,
   onOpenQuickJob
 }) => {
@@ -57,6 +62,7 @@ export const JobsView: React.FC<JobsViewProps> = ({
     const amount = parseFloat(collectionAmount);
     if (isNaN(amount) || amount <= 0) return;
 
+    const today = new Date().toISOString().split('T')[0];
     const newPaid = (job.paidAmount || 0) + amount;
     let jobStat = job.status;
     if (newPaid >= job.agreedPrice && jobStat !== 'revision_requested') {
@@ -65,7 +71,7 @@ export const JobsView: React.FC<JobsViewProps> = ({
 
     const newLog: JobActivityLog = {
       id: `log-${Date.now()}`,
-      timestamp: new Date().toISOString().split('T')[0],
+      timestamp: today,
       status: jobStat,
       note: `Payment collected: +${amount} MAD (Total paid: ${newPaid} MAD)`
     };
@@ -74,11 +80,17 @@ export const JobsView: React.FC<JobsViewProps> = ({
       ...job,
       paidAmount: Math.min(newPaid, job.agreedPrice),
       status: jobStat,
-      completedDate: jobStat === 'paid' ? new Date().toISOString().split('T')[0] : job.completedDate,
+      completedDate: jobStat === 'paid' ? today : job.completedDate,
       logs: [newLog, ...(job.logs || [])]
     };
 
     await onSaveJob(updatedJob);
+    await onSaveJobPayment({
+      id: `jpay-${Date.now()}`,
+      jobId: job.id,
+      amount,
+      date: today
+    });
     setCollectingJobId(null);
     setCollectionAmount('');
   };
@@ -98,18 +110,10 @@ export const JobsView: React.FC<JobsViewProps> = ({
       note: noteText
     };
 
-    let updatedDaysSpent = job.daysSpent || 1;
-    let updatedDaysPaused = job.daysPaused || 0;
-
-    if (newStatus === 'in_progress') updatedDaysSpent += 1;
-    if (newStatus === 'waiting_parts') updatedDaysPaused += 1;
-
     const updatedJob: Job = {
       ...job,
       status: newStatus,
       waitingReason: newStatus === 'waiting_parts' ? noteText : job.waitingReason,
-      daysSpent: updatedDaysSpent,
-      daysPaused: updatedDaysPaused,
       logs: [newLog, ...(job.logs || [])]
     };
 
@@ -161,11 +165,13 @@ export const JobsView: React.FC<JobsViewProps> = ({
         <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs overflow-x-auto">
           {[
             { id: 'all', label: 'All' },
+            { id: 'quoted', label: 'Quoted' },
             { id: 'in_progress', label: 'En Cours' },
             { id: 'waiting_parts', label: 'Waiting Parts' },
             { id: 'revision_requested', label: 'Revision' },
             { id: 'completed', label: 'Completed' },
-            { id: 'paid', label: 'Paid' }
+            { id: 'paid', label: 'Paid' },
+            { id: 'quote_lost', label: 'Lost' }
           ].map(item => (
             <button
               key={item.id}
@@ -191,6 +197,7 @@ export const JobsView: React.FC<JobsViewProps> = ({
         ) : (
           filteredJobs.map(job => {
             const uncollected = (job.agreedPrice || 0) - (job.paidAmount || 0);
+            const { daysSpent, daysPaused } = computeJobDurations(job);
 
             return (
               <div
@@ -232,11 +239,16 @@ export const JobsView: React.FC<JobsViewProps> = ({
                         ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
                         : job.status === 'revision_requested'
                         ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                        : job.status === 'quote_lost'
+                        ? 'bg-slate-700/40 text-slate-400 border border-slate-600/40'
+                        : job.status === 'quoted'
+                        ? 'bg-slate-500/20 text-slate-300 border border-slate-500/30'
                         : 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20'
                     }`}
                   >
                     {job.status === 'waiting_parts' && <Truck className="w-3 h-3" />}
                     {job.status === 'revision_requested' && <RotateCcw className="w-3 h-3" />}
+                    {job.status === 'quote_lost' && <XCircle className="w-3 h-3" />}
                     {job.status.replace('_', ' ')}
                   </span>
                 </div>
@@ -338,6 +350,34 @@ export const JobsView: React.FC<JobsViewProps> = ({
 
                 {/* Status & Revision Controls */}
                 <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-800 text-xs">
+                  {job.status === 'quoted' && (
+                    <>
+                      <button
+                        onClick={() => {
+                          setShowStatusModal(job);
+                          setNewStatus('in_progress');
+                          setStatusNote('Quote accepted, work started.');
+                        }}
+                        className="px-2.5 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-lg font-semibold flex items-center gap-1 transition text-[11px]"
+                      >
+                        <PlayCircle className="w-3 h-3" />
+                        Start Work
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setShowStatusModal(job);
+                          setNewStatus('quote_lost');
+                          setStatusNote('');
+                        }}
+                        className="px-2.5 py-1 bg-slate-700/30 hover:bg-slate-700/50 text-slate-300 border border-slate-600/40 rounded-lg font-semibold flex items-center gap-1 transition text-[11px]"
+                      >
+                        <XCircle className="w-3 h-3" />
+                        Mark Quote Lost
+                      </button>
+                    </>
+                  )}
+
                   <button
                     onClick={() => {
                       setShowStatusModal(job);
@@ -362,7 +402,7 @@ export const JobsView: React.FC<JobsViewProps> = ({
                     Client Revision
                   </button>
 
-                  {job.status !== 'completed' && job.status !== 'paid' && (
+                  {job.status !== 'completed' && job.status !== 'paid' && job.status !== 'quote_lost' && (
                     <button
                       onClick={() => {
                         setShowStatusModal(job);
@@ -392,7 +432,7 @@ export const JobsView: React.FC<JobsViewProps> = ({
                     <span>Start: {job.startDate}</span>
                     <span className="flex items-center gap-1 text-slate-400">
                       <Clock className="w-3 h-3 text-slate-500" />
-                      Work: {job.daysSpent || 1}d | Paused: {job.daysPaused || 0}d
+                      Work: {daysSpent}d | Paused: {daysPaused}d
                     </span>
                   </div>
                   <button
@@ -438,11 +478,13 @@ export const JobsView: React.FC<JobsViewProps> = ({
                   onChange={e => setNewStatus(e.target.value as JobStatus)}
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 font-bold"
                 >
+                  <option value="quoted">Quoted (Awaiting Client Decision)</option>
                   <option value="in_progress">En Cours (Active Work)</option>
                   <option value="waiting_parts">Waiting Parts / Equipment (Another city)</option>
                   <option value="revision_requested">Client Revision Requested</option>
                   <option value="completed">Completed (Work Finished)</option>
                   <option value="paid">Paid & Closed</option>
+                  <option value="quote_lost">Quote Lost (Client Declined)</option>
                 </select>
               </div>
 
@@ -452,6 +494,8 @@ export const JobsView: React.FC<JobsViewProps> = ({
                     ? 'REASON / PARTS SOURCE (e.g. Waiting Dahua camera from Casablanca)'
                     : newStatus === 'revision_requested'
                     ? 'CLIENT MODIFICATION NOTE (e.g. Client requested angle adjustment)'
+                    : newStatus === 'quote_lost'
+                    ? 'REASON CLIENT DECLINED (e.g. Price too high, chose another technician)'
                     : 'STATUS NOTE'}
                 </label>
                 <textarea
