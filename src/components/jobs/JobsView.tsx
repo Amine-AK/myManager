@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Job, JobPayment, JobStatus, JobActivityLog } from '../../types';
+import type { Job, JobPayment, JobIntervention, JobStatus, JobActivityLog } from '../../types';
 import { computeJobDurations } from '../../lib/calculations/jobTiming';
 import {
   Wrench,
@@ -10,6 +10,7 @@ import {
   DollarSign,
   User,
   Phone,
+  PhoneCall,
   Truck,
   RotateCcw,
   History,
@@ -23,16 +24,20 @@ import {
 
 interface JobsViewProps {
   jobs: Job[];
+  jobInterventions: JobIntervention[];
   onSaveJob: (job: Job) => Promise<void>;
   onSaveJobPayment: (payment: JobPayment) => Promise<void>;
+  onSaveJobIntervention: (intervention: JobIntervention) => Promise<void>;
   onDeleteJob: (id: string) => Promise<void>;
   onOpenQuickJob: () => void;
 }
 
 export const JobsView: React.FC<JobsViewProps> = ({
   jobs,
+  jobInterventions,
   onSaveJob,
   onSaveJobPayment,
+  onSaveJobIntervention,
   onDeleteJob,
   onOpenQuickJob
 }) => {
@@ -46,6 +51,11 @@ export const JobsView: React.FC<JobsViewProps> = ({
   const [showStatusModal, setShowStatusModal] = useState<Job | null>(null);
   const [newStatus, setNewStatus] = useState<JobStatus>('in_progress');
   const [statusNote, setStatusNote] = useState('');
+
+  // Client Callback (post-completion intervention) Modal State
+  const [showInterventionModal, setShowInterventionModal] = useState<Job | null>(null);
+  const [interventionDate, setInterventionDate] = useState(new Date().toISOString().split('T')[0]);
+  const [interventionReason, setInterventionReason] = useState('');
 
   const filteredJobs = jobs.filter(j => {
     const matchesSearch =
@@ -120,6 +130,31 @@ export const JobsView: React.FC<JobsViewProps> = ({
     await onSaveJob(updatedJob);
     setShowStatusModal(null);
     setStatusNote('');
+  };
+
+  // Handle Logging a Post-Completion Client Callback
+  const handleLogIntervention = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!showInterventionModal || !interventionReason.trim()) return;
+
+    await onSaveJobIntervention({
+      id: `int-${Date.now()}`,
+      jobId: showInterventionModal.id,
+      date: interventionDate,
+      reason: interventionReason.trim(),
+      resolved: false
+    });
+
+    setShowInterventionModal(null);
+    setInterventionReason('');
+  };
+
+  const handleResolveIntervention = async (intervention: JobIntervention) => {
+    await onSaveJobIntervention({
+      ...intervention,
+      resolved: true,
+      resolvedDate: new Date().toISOString().split('T')[0]
+    });
   };
 
   return (
@@ -198,6 +233,9 @@ export const JobsView: React.FC<JobsViewProps> = ({
           filteredJobs.map(job => {
             const uncollected = (job.agreedPrice || 0) - (job.paidAmount || 0);
             const { daysSpent, daysPaused } = computeJobDurations(job);
+            const jobCallbacks = jobInterventions.filter(i => i.jobId === job.id);
+            const openCallbacks = jobCallbacks.filter(i => !i.resolved).length;
+            const canLogCallback = job.status === 'completed' || job.status === 'paid';
 
             return (
               <div
@@ -270,6 +308,17 @@ export const JobsView: React.FC<JobsViewProps> = ({
                     <RotateCcw className="w-4 h-4 text-amber-400 shrink-0" />
                     <div>
                       <strong className="font-bold">Client Requested Revision:</strong> Re-opened for modifications.
+                    </div>
+                  </div>
+                )}
+
+                {/* Open Client Callback Banner if applicable */}
+                {openCallbacks > 0 && (
+                  <div className="p-2.5 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs text-rose-200 flex items-center gap-2">
+                    <PhoneCall className="w-4 h-4 text-rose-400 shrink-0" />
+                    <div>
+                      <strong className="font-bold">{openCallbacks} Open Client Callback{openCallbacks > 1 ? 's' : ''}:</strong>{' '}
+                      Client requested a follow-up visit after delivery. See History for details.
                     </div>
                   </div>
                 )}
@@ -416,13 +465,28 @@ export const JobsView: React.FC<JobsViewProps> = ({
                     </button>
                   )}
 
+                  {canLogCallback && (
+                    <button
+                      onClick={() => {
+                        setShowInterventionModal(job);
+                        setInterventionDate(new Date().toISOString().split('T')[0]);
+                        setInterventionReason('');
+                      }}
+                      className="px-2.5 py-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-lg font-semibold flex items-center gap-1 transition text-[11px]"
+                    >
+                      <PhoneCall className="w-3 h-3" />
+                      Log Client Callback
+                    </button>
+                  )}
+
                   <button
                     onClick={() => setSelectedJobForLogs(job)}
                     className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold flex items-center gap-1 transition text-[11px] ml-auto"
                     title="View activity history log"
                   >
                     <History className="w-3 h-3" />
-                    History ({job.logs?.length || 0})
+                    History ({job.logs?.length || 0}
+                    {jobCallbacks.length > 0 ? ` + ${jobCallbacks.length} callback${jobCallbacks.length > 1 ? 's' : ''}` : ''})
                   </button>
                 </div>
 
@@ -528,6 +592,72 @@ export const JobsView: React.FC<JobsViewProps> = ({
         </div>
       )}
 
+      {/* LOG CLIENT CALLBACK MODAL (post-completion follow-up request) */}
+      {showInterventionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-5 text-slate-100 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="font-bold text-base flex items-center gap-2">
+                <PhoneCall className="w-4 h-4 text-rose-400" />
+                Log Client Callback
+              </h3>
+              <button
+                onClick={() => setShowInterventionModal(null)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleLogIntervention} className="space-y-3 text-xs">
+              <p className="text-slate-400">
+                For a follow-up visit the client requested after "{showInterventionModal.title}" was already delivered.
+              </p>
+
+              <div>
+                <label className="block text-slate-400 mb-1 font-semibold">DATE REQUESTED</label>
+                <input
+                  type="date"
+                  value={interventionDate}
+                  onChange={e => setInterventionDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-400 mb-1 font-semibold">
+                  REASON (e.g. Camera stopped recording, cable came loose)
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  placeholder="Describe why the client called back..."
+                  value={interventionReason}
+                  onChange={e => setInterventionReason(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-slate-100 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowInterventionModal(null)}
+                  className="w-1/2 py-2.5 bg-slate-800 text-slate-300 font-bold rounded-xl"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="w-1/2 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl"
+                >
+                  Save Callback
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* ACTIVITY HISTORY TIMELINE MODAL */}
       {selectedJobForLogs && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
@@ -563,6 +693,51 @@ export const JobsView: React.FC<JobsViewProps> = ({
                 ))
               )}
             </div>
+
+            {/* Client Callbacks Section */}
+            {jobInterventions.filter(i => i.jobId === selectedJobForLogs.id).length > 0 && (
+              <div className="space-y-3 text-xs pt-3 border-t border-slate-800">
+                <h4 className="font-bold text-rose-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                  <PhoneCall className="w-3.5 h-3.5" />
+                  Client Callbacks
+                </h4>
+                {jobInterventions
+                  .filter(i => i.jobId === selectedJobForLogs.id)
+                  .map(intervention => (
+                    <div
+                      key={intervention.id}
+                      className={`p-3 rounded-xl border space-y-1.5 ${
+                        intervention.resolved
+                          ? 'bg-slate-950/80 border-slate-800'
+                          : 'bg-rose-500/10 border-rose-500/30'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span
+                          className={`font-extrabold uppercase ${
+                            intervention.resolved ? 'text-slate-400' : 'text-rose-300'
+                          }`}
+                        >
+                          {intervention.resolved ? 'Resolved' : 'Open'}
+                        </span>
+                        <span className="text-slate-500">{intervention.date}</span>
+                      </div>
+                      <p className="text-slate-300 text-xs">{intervention.reason}</p>
+                      {intervention.resolved ? (
+                        <p className="text-[10px] text-slate-500">Resolved on {intervention.resolvedDate}</p>
+                      ) : (
+                        <button
+                          onClick={() => handleResolveIntervention(intervention)}
+                          className="mt-1 px-2.5 py-1 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/40 font-bold rounded-lg transition text-[11px] flex items-center gap-1"
+                        >
+                          <CheckCircle2 className="w-3 h-3" />
+                          Mark Resolved
+                        </button>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            )}
           </div>
         </div>
       )}

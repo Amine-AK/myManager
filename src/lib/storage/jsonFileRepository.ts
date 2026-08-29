@@ -4,7 +4,7 @@
 // ==========================================
 
 import type { IDataRepository } from './repository';
-import type { Job, BusinessExpense, PersonalExpense, DebtObligation, DebtPayment, JobPayment, Client } from '../../types';
+import type { Job, BusinessExpense, PersonalExpense, DebtObligation, DebtPayment, JobPayment, JobIntervention, Client } from '../../types';
 
 const API_BASE = '/api';
 
@@ -49,6 +49,25 @@ export class JsonFileRepository implements IDataRepository {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payment)
+    });
+    return await res.json();
+  }
+
+  // --- JOB INTERVENTIONS (post-completion client callbacks) ---
+  async getJobInterventions(): Promise<JobIntervention[]> {
+    try {
+      const res = await fetch(`${API_BASE}/job-interventions`);
+      return await res.json();
+    } catch {
+      return [];
+    }
+  }
+
+  async saveJobIntervention(intervention: JobIntervention): Promise<JobIntervention> {
+    const res = await fetch(`${API_BASE}/job-interventions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(intervention)
     });
     return await res.json();
   }

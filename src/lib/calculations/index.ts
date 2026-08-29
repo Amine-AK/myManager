@@ -2,7 +2,7 @@
 // CENTRALIZED FINANCIAL ENGINE - SINGLE SOURCE OF TRUTH
 // ==========================================
 
-import type { Job, BusinessExpense, PersonalExpense, DebtObligation, DebtPayment, FinancialMetrics } from '../../types';
+import type { Job, BusinessExpense, PersonalExpense, DebtObligation, DebtPayment, JobIntervention, FinancialMetrics } from '../../types';
 import {
   calculateCollectedIncome,
   calculateTotalRevenueAgreed,
@@ -17,6 +17,7 @@ import {
 import { calculateNetBusinessProfit, calculateProfitMarginPercent } from './profitability';
 import { calculateTotalDebtOutstanding, countActiveDebts } from './debt';
 import { calculateHouseholdSpending, calculateIndividualSpending } from './personalExpenseScope';
+import { calculateInterventionSummary } from './interventions';
 
 export * from './cashflow';
 export * from './profitability';
@@ -26,6 +27,7 @@ export * from './acquisition';
 export * from './weeklyTracker';
 export * from './jobTiming';
 export * from './personalExpenseScope';
+export * from './interventions';
 
 /**
  * SINGLE SOURCE OF TRUTH FOR ALL FINANCIAL CALCULATIONS.
@@ -37,7 +39,8 @@ export function computeFinancialMetrics(
   businessExpenses: BusinessExpense[],
   personalExpenses: PersonalExpense[],
   debts: DebtObligation[],
-  debtPayments: DebtPayment[]
+  debtPayments: DebtPayment[],
+  jobInterventions: JobIntervention[] = []
 ): FinancialMetrics {
   const totalRevenueAgreed = calculateTotalRevenueAgreed(jobs);
   const collectedIncome = calculateCollectedIncome(jobs);
@@ -70,6 +73,9 @@ export function computeFinancialMetrics(
   const quoteConversionRatePercent =
     wonJobsCount + quoteLostCount > 0 ? (wonJobsCount / (wonJobsCount + quoteLostCount)) * 100 : 0;
 
+  const { totalInterventions, unresolvedInterventionsCount, jobsWithInterventionsCount } =
+    calculateInterventionSummary(jobInterventions);
+
   return {
     totalRevenueAgreed,
     collectedIncome,
@@ -91,6 +97,9 @@ export function computeFinancialMetrics(
     waitingPartsCount,
     revisionRequestedCount,
     quoteLostCount,
-    quoteConversionRatePercent
+    quoteConversionRatePercent,
+    totalInterventions,
+    unresolvedInterventionsCount,
+    jobsWithInterventionsCount
   };
 }

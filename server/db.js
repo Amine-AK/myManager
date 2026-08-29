@@ -64,6 +64,18 @@ export async function initDb() {
       `;
 
       await sql`
+        CREATE TABLE IF NOT EXISTS job_interventions (
+          id VARCHAR(255) PRIMARY KEY,
+          job_id TEXT NOT NULL,
+          date TEXT NOT NULL,
+          reason TEXT NOT NULL,
+          resolved BOOLEAN NOT NULL DEFAULT false,
+          resolved_date TEXT,
+          notes TEXT
+        );
+      `;
+
+      await sql`
         CREATE TABLE IF NOT EXISTS job_payments (
           id VARCHAR(255) PRIMARY KEY,
           job_id TEXT NOT NULL,
@@ -283,6 +295,64 @@ export async function deleteJobDb(id) {
   const jobs = await readJson('jobs.json');
   await writeJson('jobs.json', jobs.filter(j => j.id !== id));
   return true;
+}
+
+// --- JOB INTERVENTIONS (post-completion client callbacks) ---
+export async function getJobInterventionsDb() {
+  if (sql) {
+    const rows = await sql`SELECT * FROM job_interventions ORDER BY date DESC;`;
+    return rows.map(r => ({
+      id: r.id,
+      jobId: r.job_id,
+      date: r.date,
+      reason: r.reason,
+      resolved: r.resolved,
+      resolvedDate: r.resolved_date || undefined,
+      notes: r.notes || undefined
+    }));
+  }
+
+  if (redis) {
+    const data = await redis.get('job_interventions');
+    return data || [];
+  }
+
+  return await readJson('job_interventions.json');
+}
+
+export async function saveJobInterventionDb(intervention) {
+  if (sql) {
+    await sql`
+      INSERT INTO job_interventions (id, job_id, date, reason, resolved, resolved_date, notes)
+      VALUES (
+        ${intervention.id}, ${intervention.jobId}, ${intervention.date}, ${intervention.reason},
+        ${intervention.resolved || false}, ${intervention.resolvedDate || null}, ${intervention.notes || null}
+      )
+      ON CONFLICT (id) DO UPDATE SET
+        date = EXCLUDED.date,
+        reason = EXCLUDED.reason,
+        resolved = EXCLUDED.resolved,
+        resolved_date = EXCLUDED.resolved_date,
+        notes = EXCLUDED.notes;
+    `;
+    return intervention;
+  }
+
+  if (redis) {
+    const interventions = (await redis.get('job_interventions')) || [];
+    const index = interventions.findIndex(i => i.id === intervention.id);
+    if (index >= 0) interventions[index] = intervention;
+    else interventions.unshift(intervention);
+    await redis.set('job_interventions', interventions);
+    return intervention;
+  }
+
+  const interventions = await readJson('job_interventions.json');
+  const index = interventions.findIndex(i => i.id === intervention.id);
+  if (index >= 0) interventions[index] = intervention;
+  else interventions.unshift(intervention);
+  await writeJson('job_interventions.json', interventions);
+  return intervention;
 }
 
 // --- JOB PAYMENTS ---
@@ -680,6 +750,7 @@ export async function saveClientDb(client) {
 export async function clearAllDataDb() {
   if (sql) {
     await sql`DELETE FROM job_payments;`;
+    await sql`DELETE FROM job_interventions;`;
     await sql`DELETE FROM debt_payments;`;
     await sql`DELETE FROM jobs;`;
     await sql`DELETE FROM business_expenses;`;
@@ -692,6 +763,7 @@ export async function clearAllDataDb() {
   if (redis) {
     await redis.set('jobs', []);
     await redis.set('job_payments', []);
+    await redis.set('job_interventions', []);
     await redis.set('business_expenses', []);
     await redis.set('personal_expenses', []);
     await redis.set('debts', []);
@@ -702,6 +774,7 @@ export async function clearAllDataDb() {
 
   await writeJson('jobs.json', []);
   await writeJson('job_payments.json', []);
+  await writeJson('job_interventions.json', []);
   await writeJson('business_expenses.json', []);
   await writeJson('personal_expenses.json', []);
   await writeJson('debts.json', []);

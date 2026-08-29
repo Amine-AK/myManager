@@ -135,6 +135,16 @@ export interface JobPayment {
   notes?: string;
 }
 
+export interface JobIntervention {
+  id: string;
+  jobId: string;
+  date: string;            // ISO date YYYY-MM-DD - when the client requested the follow-up
+  reason: string;          // e.g. "Camera stopped recording after 2 weeks"
+  resolved: boolean;
+  resolvedDate?: string;   // ISO date YYYY-MM-DD - when the follow-up visit was completed
+  notes?: string;
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -188,6 +198,11 @@ export interface FinancialMetrics {
   revisionRequestedCount: number;
   quoteLostCount: number;
   quoteConversionRatePercent: number; // Won jobs / (Won + Lost quotes) * 100
+
+  // Post-Completion Client Callbacks
+  totalInterventions: number;         // All client-requested follow-up visits, ever
+  unresolvedInterventionsCount: number;
+  jobsWithInterventionsCount: number; // Distinct jobs that needed a callback
 }
 
 export interface FactualInsight {

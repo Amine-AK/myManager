@@ -91,7 +91,18 @@ export function generateFactualInsights(
     });
   }
 
-  // 7. Active Debt Load Observation
+  // 7. Unresolved Client Callback Observation
+  if (metrics.unresolvedInterventionsCount > 0) {
+    insights.push({
+      id: 'unresolved_callbacks',
+      type: 'warning',
+      title: 'Open Client Callbacks',
+      message: `${metrics.unresolvedInterventionsCount} client-requested follow-up visit(s) still unresolved across ${metrics.jobsWithInterventionsCount} job(s).`,
+      metric: `${metrics.unresolvedInterventionsCount} Open`
+    });
+  }
+
+  // 8. Active Debt Load Observation
   if (metrics.totalDebtOutstanding > 0) {
     insights.push({
       id: 'debt_burden',

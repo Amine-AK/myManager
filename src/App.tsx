@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type {
   Job,
   JobPayment,
+  JobIntervention,
   BusinessExpense,
   PersonalExpense,
   DebtObligation,
@@ -40,6 +41,7 @@ export function App() {
   // Entities Data State
   const [jobs, setJobs] = useState<Job[]>([]);
   const [jobPayments, setJobPayments] = useState<JobPayment[]>([]);
+  const [jobInterventions, setJobInterventions] = useState<JobIntervention[]>([]);
   const [businessExpenses, setBusinessExpenses] = useState<BusinessExpense[]>([]);
   const [personalExpenses, setPersonalExpenses] = useState<PersonalExpense[]>([]);
   const [debts, setDebts] = useState<DebtObligation[]>([]);
@@ -50,9 +52,10 @@ export function App() {
   // Load dataset from repository
   const loadData = useCallback(async () => {
     try {
-      const [j, jp, be, pe, d, dp, c] = await Promise.all([
+      const [j, jp, ji, be, pe, d, dp, c] = await Promise.all([
         repository.getJobs(),
         repository.getJobPayments(),
+        repository.getJobInterventions(),
         repository.getBusinessExpenses(),
         repository.getPersonalExpenses(),
         repository.getDebtObligations(),
@@ -61,6 +64,7 @@ export function App() {
       ]);
       setJobs(j);
       setJobPayments(jp);
+      setJobInterventions(ji);
       setBusinessExpenses(be);
       setPersonalExpenses(pe);
       setDebts(d);
@@ -81,7 +85,8 @@ export function App() {
     businessExpenses,
     personalExpenses,
     debts,
-    debtPayments
+    debtPayments,
+    jobInterventions
   );
 
   // Generate objective factual insights
@@ -100,6 +105,11 @@ export function App() {
 
   const handleSaveJobPayment = async (payment: JobPayment) => {
     await repository.saveJobPayment(payment);
+    await loadData();
+  };
+
+  const handleSaveJobIntervention = async (intervention: JobIntervention) => {
+    await repository.saveJobIntervention(intervention);
     await loadData();
   };
 
@@ -214,8 +224,10 @@ export function App() {
         {activeTab === 'jobs' && (
           <JobsView
             jobs={jobs}
+            jobInterventions={jobInterventions}
             onSaveJob={handleSaveJob}
             onSaveJobPayment={handleSaveJobPayment}
+            onSaveJobIntervention={handleSaveJobIntervention}
             onDeleteJob={handleDeleteJob}
             onOpenQuickJob={() => setIsJobModalOpen(true)}
           />
