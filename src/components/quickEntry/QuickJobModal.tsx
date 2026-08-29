@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Wrench, Check, User, Share2 } from 'lucide-react';
-import type { Job, JobPayment, JobCategory, Client, AcquisitionSource } from '../../types';
+import type { Job, JobPayment, Client } from '../../types';
+import { CATEGORIES, DEFAULT_SOURCES } from '../../lib/jobOptions';
 
 interface QuickJobModalProps {
   isOpen: boolean;
@@ -9,26 +10,6 @@ interface QuickJobModalProps {
   onSaveJobPayment: (payment: JobPayment) => Promise<void>;
   clients: Client[];
 }
-
-const CATEGORIES: JobCategory[] = [
-  'CCTV Installation',
-  'IP Camera Installation',
-  'Camera Error / Repair',
-  'Satellite Dish (Parabole)',
-  'Câblage (Network & Cable)',
-  'TV Repair',
-  'Printer Repair & Maintenance',
-  'Informatique (IT & Hardware)',
-  'Fiber Sharing (Partage Fibre)'
-];
-
-const DEFAULT_SOURCES: AcquisitionSource[] = [
-  'Friend (Recommandation)',
-  'Business Card (Carte de visite)',
-  'Droguerie (Recommandation)',
-  'Mustapha Alliance',
-  'Mestour'
-];
 
 export const QuickJobModal: React.FC<QuickJobModalProps> = ({
   isOpen,

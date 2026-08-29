@@ -3,6 +3,7 @@
 // ==========================================
 
 import type { FinancialMetrics, FactualInsight, Job, DebtObligation } from '../../types';
+import { calculateMonthlyDebtCommitments } from './debt';
 
 /**
  * Generates non-emotional, purely factual observations based on calculations.
@@ -55,8 +56,7 @@ export function generateFactualInsights(
   }
 
   // 4. Available Cash vs Monthly Debt Obligations
-  const activeDebts = debts.filter(d => d.status === 'active');
-  const minMonthlyDebt = activeDebts.reduce((sum, d) => sum + (d.monthlyMinPayment || 0), 0);
+  const minMonthlyDebt = calculateMonthlyDebtCommitments(debts);
 
   if (minMonthlyDebt > 0 && metrics.availableCash < minMonthlyDebt) {
     const deficit = minMonthlyDebt - metrics.availableCash;
