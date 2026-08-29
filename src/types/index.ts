@@ -66,6 +66,7 @@ export interface JobActivityLog {
   timestamp: string;     // ISO Date or Time string
   status: JobStatus;
   note: string;          // e.g. "Waiting for Dahua NVR part from Casablanca"
+  hoursSpent?: number;   // Actual hands-on hours worked during this session
 }
 
 export interface Job {
@@ -142,6 +143,7 @@ export interface JobIntervention {
   reason: string;          // e.g. "Camera stopped recording after 2 weeks"
   resolved: boolean;
   resolvedDate?: string;   // ISO date YYYY-MM-DD - when the follow-up visit was completed
+  hoursSpent?: number;     // Actual hands-on hours worked resolving this callback
   notes?: string;
 }
 

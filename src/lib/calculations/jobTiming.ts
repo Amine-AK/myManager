@@ -1,8 +1,8 @@
 // ==========================================
-// FINANCIAL ENGINE - JOB TIMING (ELAPSED CALENDAR DAYS)
+// FINANCIAL ENGINE - JOB TIMING (ELAPSED CALENDAR DAYS & LOGGED HOURS)
 // ==========================================
 
-import type { Job, JobStatus } from '../../types';
+import type { Job, JobIntervention, JobStatus } from '../../types';
 
 function diffDays(fromDate: string, toDate: string): number {
   const MS_PER_DAY = 1000 * 60 * 60 * 24;
@@ -48,4 +48,19 @@ export function computeJobDurations(job: Job): { daysSpent: number; daysPaused: 
   }
 
   return { daysSpent, daysPaused };
+}
+
+/**
+ * Sums the actual hands-on hours a technician manually logged for a job:
+ * the initial work session plus every revision/callback session worked on
+ * it since. Unlike computeJobDurations (elapsed calendar days), this is
+ * user-entered labor time, not derived from dates.
+ */
+export function calculateJobTotalHours(job: Job, jobInterventions: JobIntervention[] = []): number {
+  const logHours = (job.logs || []).reduce((sum, log) => sum + (log.hoursSpent || 0), 0);
+  const interventionHours = jobInterventions
+    .filter(i => i.jobId === job.id)
+    .reduce((sum, i) => sum + (i.hoursSpent || 0), 0);
+
+  return logHours + interventionHours;
 }
