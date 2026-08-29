@@ -212,12 +212,15 @@ export async function saveJobDb(job) {
     `;
 
     if (job.clientName) {
-      await saveClientDb({
-        id: `cli-${Date.now()}`,
-        name: job.clientName,
-        phone: job.clientPhone,
-        acquisitionSource: job.acquisitionSource
-      });
+      const existing = await sql`SELECT id FROM clients WHERE LOWER(name) = LOWER(${job.clientName}) LIMIT 1;`;
+      if (existing.length === 0) {
+        await saveClientDb({
+          id: `cli-${Date.now()}`,
+          name: job.clientName,
+          phone: job.clientPhone,
+          acquisitionSource: job.acquisitionSource
+        });
+      }
     }
 
     return job;

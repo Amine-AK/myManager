@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import type { FinancialMetrics, Job, BusinessExpense, PersonalExpense, DebtObligation, DebtPayment } from '../../types';
-import { Printer, Download, Upload, RefreshCw, FileSpreadsheet, ShieldCheck } from 'lucide-react';
+import { Printer, Download, Upload, FileSpreadsheet, ShieldCheck } from 'lucide-react';
 
 interface PrintStatementViewProps {
   metrics: FinancialMetrics;
@@ -11,7 +11,6 @@ interface PrintStatementViewProps {
   debtPayments?: DebtPayment[];
   onExportData: () => Promise<void>;
   onImportData: (jsonStr: string) => Promise<boolean>;
-  onResetSeedData: () => Promise<void>;
 }
 
 export const PrintStatementView: React.FC<PrintStatementViewProps> = ({
@@ -22,8 +21,7 @@ export const PrintStatementView: React.FC<PrintStatementViewProps> = ({
   debts,
   debtPayments = [],
   onExportData,
-  onImportData,
-  onResetSeedData
+  onImportData
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -126,19 +124,6 @@ export const PrintStatementView: React.FC<PrintStatementViewProps> = ({
           >
             <Upload className="w-4 h-4 text-purple-400" />
             Restore JSON
-          </button>
-
-          <button
-            onClick={() => {
-              if (confirm('Reset all data to initial Moroccan Handyman seed dataset?')) {
-                onResetSeedData();
-              }
-            }}
-            className="flex items-center gap-1.5 px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 font-bold text-xs rounded-xl transition"
-            title="Reset dataset"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Reset Seed Data
           </button>
         </div>
       </div>

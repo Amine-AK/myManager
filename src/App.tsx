@@ -148,11 +148,6 @@ export function App() {
     return ok;
   };
 
-  const handleResetSeedData = async () => {
-    await repository.resetToSeedData();
-    await loadData();
-  };
-
   const handleLogout = () => {
     localStorage.removeItem('handyman_authenticated');
     setIsAuthenticated(false);
@@ -243,7 +238,6 @@ export function App() {
             debtPayments={debtPayments}
             onExportData={handleExportData}
             onImportData={handleImportData}
-            onResetSeedData={handleResetSeedData}
           />
         )}
       </main>
