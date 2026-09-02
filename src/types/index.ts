@@ -95,7 +95,6 @@ export interface BusinessExpense {
   amount: number;          // MAD
   category: BusinessExpenseCategory | string;
   date: string;            // ISO date YYYY-MM-DD
-  jobId?: string;          // Optional link to specific job
   notes?: string;
 }
 
@@ -134,6 +133,11 @@ export interface JobPayment {
   amount: number;          // MAD, cash actually received on this date
   date: string;            // ISO date YYYY-MM-DD
   notes?: string;
+}
+
+export interface JobPaymentCollectionRequest {
+  payment: { id: string; amount: number; date: string; notes?: string };
+  jobUpdate: { status: JobStatus; completedDate?: string; logEntry: JobActivityLog };
 }
 
 export interface JobIntervention {

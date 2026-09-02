@@ -7,6 +7,7 @@ import {
   deleteJobDb,
   getJobPaymentsDb,
   saveJobPaymentDb,
+  collectJobPaymentDb,
   getJobInterventionsDb,
   saveJobInterventionDb,
   getBusinessExpensesDb,
@@ -24,6 +25,18 @@ import {
   saveClientDb,
   clearAllDataDb
 } from './db.js';
+import {
+  validateBody,
+  jobSchema,
+  jobPaymentSchema,
+  collectJobPaymentSchema,
+  jobInterventionSchema,
+  businessExpenseSchema,
+  personalExpenseSchema,
+  debtSchema,
+  debtPaymentSchema,
+  clientSchema
+} from './validation.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -44,7 +57,7 @@ app.get('/api/jobs', async (req, res) => {
   }
 });
 
-app.post('/api/jobs', async (req, res) => {
+app.post('/api/jobs', validateBody(jobSchema), async (req, res) => {
   try {
     const job = await saveJobDb(req.body);
     res.json(job);
@@ -72,10 +85,25 @@ app.get('/api/job-payments', async (req, res) => {
   }
 });
 
-app.post('/api/job-payments', async (req, res) => {
+app.post('/api/job-payments', validateBody(jobPaymentSchema), async (req, res) => {
   try {
     const payment = await saveJobPaymentDb(req.body);
     res.json(payment);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Atomically records a payment against an existing job and recomputes
+// paid_amount from the payment ledger in one transaction (see collectJobPaymentDb).
+app.post('/api/jobs/:id/collect-payment', validateBody(collectJobPaymentSchema), async (req, res) => {
+  try {
+    const { payment, jobUpdate } = req.body;
+    const job = await collectJobPaymentDb(req.params.id, payment, jobUpdate);
+    if (!job) {
+      return res.status(404).json({ error: `Job ${req.params.id} not found` });
+    }
+    res.json(job);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -91,7 +119,7 @@ app.get('/api/job-interventions', async (req, res) => {
   }
 });
 
-app.post('/api/job-interventions', async (req, res) => {
+app.post('/api/job-interventions', validateBody(jobInterventionSchema), async (req, res) => {
   try {
     const intervention = await saveJobInterventionDb(req.body);
     res.json(intervention);
@@ -110,7 +138,7 @@ app.get('/api/business-expenses', async (req, res) => {
   }
 });
 
-app.post('/api/business-expenses', async (req, res) => {
+app.post('/api/business-expenses', validateBody(businessExpenseSchema), async (req, res) => {
   try {
     const exp = await saveBusinessExpenseDb(req.body);
     res.json(exp);
@@ -138,7 +166,7 @@ app.get('/api/personal-expenses', async (req, res) => {
   }
 });
 
-app.post('/api/personal-expenses', async (req, res) => {
+app.post('/api/personal-expenses', validateBody(personalExpenseSchema), async (req, res) => {
   try {
     const exp = await savePersonalExpenseDb(req.body);
     res.json(exp);
@@ -166,7 +194,7 @@ app.get('/api/debts', async (req, res) => {
   }
 });
 
-app.post('/api/debts', async (req, res) => {
+app.post('/api/debts', validateBody(debtSchema), async (req, res) => {
   try {
     const debt = await saveDebtDb(req.body);
     res.json(debt);
@@ -193,7 +221,7 @@ app.get('/api/debt-payments', async (req, res) => {
   }
 });
 
-app.post('/api/debt-payments', async (req, res) => {
+app.post('/api/debt-payments', validateBody(debtPaymentSchema), async (req, res) => {
   try {
     const payment = await saveDebtPaymentDb(req.body);
     res.json(payment);
@@ -212,7 +240,7 @@ app.get('/api/clients', async (req, res) => {
   }
 });
 
-app.post('/api/clients', async (req, res) => {
+app.post('/api/clients', validateBody(clientSchema), async (req, res) => {
   try {
     const client = await saveClientDb(req.body);
     res.json(client);
@@ -242,34 +270,39 @@ app.get('/api/export', async (req, res) => {
   }
 });
 
+// Validates and imports one array of records against `schema`, skipping (not
+// throwing on) individually invalid records so one bad row can't abort or
+// silently corrupt the rest of an otherwise-good backup.
+async function importRecords(records, schema, saveFn, skipped) {
+  if (!Array.isArray(records)) return 0;
+  let imported = 0;
+  for (const record of records) {
+    const result = schema.safeParse(record);
+    if (!result.success) {
+      skipped.push({ id: record?.id, reason: result.error.issues[0]?.message });
+      continue;
+    }
+    await saveFn(result.data);
+    imported++;
+  }
+  return imported;
+}
+
 app.post('/api/import', async (req, res) => {
   try {
     const data = req.body;
-    if (data.jobs) {
-      for (const j of data.jobs) await saveJobDb(j);
-    }
-    if (data.jobPayments) {
-      for (const p of data.jobPayments) await saveJobPaymentDb(p);
-    }
-    if (data.jobInterventions) {
-      for (const i of data.jobInterventions) await saveJobInterventionDb(i);
-    }
-    if (data.businessExpenses) {
-      for (const e of data.businessExpenses) await saveBusinessExpenseDb(e);
-    }
-    if (data.personalExpenses) {
-      for (const e of data.personalExpenses) await savePersonalExpenseDb(e);
-    }
-    if (data.debts) {
-      for (const d of data.debts) await saveDebtDb(d);
-    }
-    if (data.debtPayments) {
-      for (const p of data.debtPayments) await saveDebtPaymentDb(p);
-    }
-    if (data.clients) {
-      for (const c of data.clients) await saveClientDb(c);
-    }
-    res.json({ success: true });
+    const skipped = [];
+    const imported = {
+      jobs: await importRecords(data.jobs, jobSchema, saveJobDb, skipped),
+      jobPayments: await importRecords(data.jobPayments, jobPaymentSchema, saveJobPaymentDb, skipped),
+      jobInterventions: await importRecords(data.jobInterventions, jobInterventionSchema, saveJobInterventionDb, skipped),
+      businessExpenses: await importRecords(data.businessExpenses, businessExpenseSchema, saveBusinessExpenseDb, skipped),
+      personalExpenses: await importRecords(data.personalExpenses, personalExpenseSchema, savePersonalExpenseDb, skipped),
+      debts: await importRecords(data.debts, debtSchema, saveDebtDb, skipped),
+      debtPayments: await importRecords(data.debtPayments, debtPaymentSchema, saveDebtPaymentDb, skipped),
+      clients: await importRecords(data.clients, clientSchema, saveClientDb, skipped)
+    };
+    res.json({ success: true, imported, skipped });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

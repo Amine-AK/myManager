@@ -171,27 +171,31 @@ async function writeJson(filename, data) {
 }
 
 // --- JOBS ---
+function mapJobRow(r) {
+  return {
+    id: r.id,
+    title: r.title,
+    clientName: r.client_name,
+    clientPhone: r.client_phone || undefined,
+    category: r.category,
+    status: r.status,
+    agreedPrice: parseFloat(r.agreed_price),
+    paidAmount: parseFloat(r.paid_amount),
+    materialCosts: parseFloat(r.material_costs),
+    startDate: r.start_date,
+    completedDate: r.completed_date || undefined,
+    acquisitionSource: r.acquisition_source || undefined,
+    waitingReason: r.waiting_reason || undefined,
+    daysSpent: r.days_spent || 1,
+    daysPaused: r.days_paused || 0,
+    logs: typeof r.logs === 'string' ? JSON.parse(r.logs) : (r.logs || [])
+  };
+}
+
 export async function getJobsDb() {
   if (sql) {
     const rows = await sql`SELECT * FROM jobs ORDER BY start_date DESC;`;
-    return rows.map(r => ({
-      id: r.id,
-      title: r.title,
-      clientName: r.client_name,
-      clientPhone: r.client_phone || undefined,
-      category: r.category,
-      status: r.status,
-      agreedPrice: parseFloat(r.agreed_price),
-      paidAmount: parseFloat(r.paid_amount),
-      materialCosts: parseFloat(r.material_costs),
-      startDate: r.start_date,
-      completedDate: r.completed_date || undefined,
-      acquisitionSource: r.acquisition_source || undefined,
-      waitingReason: r.waiting_reason || undefined,
-      daysSpent: r.days_spent || 1,
-      daysPaused: r.days_paused || 0,
-      logs: typeof r.logs === 'string' ? JSON.parse(r.logs) : (r.logs || [])
-    }));
+    return rows.map(mapJobRow);
   }
 
   if (redis) {
@@ -398,6 +402,70 @@ export async function saveJobPaymentDb(pay) {
   return pay;
 }
 
+/**
+ * Atomically records a payment against an existing job and recomputes
+ * jobs.paid_amount from SUM(job_payments) in the same transaction, instead
+ * of incrementing a cached value across two separate writes. This is the
+ * path "1-Tap Collect Payment" uses so paid_amount can never drift from the
+ * payment ledger it's supposed to summarize.
+ */
+export async function collectJobPaymentDb(jobId, payment, jobUpdate) {
+  if (sql) {
+    const logEntryJson = JSON.stringify(jobUpdate.logEntry);
+    const results = await sql.transaction([
+      sql`INSERT INTO job_payments (id, job_id, amount, date, notes)
+          VALUES (${payment.id}, ${jobId}, ${payment.amount}, ${payment.date}, ${payment.notes || null});`,
+      sql`UPDATE jobs SET
+            paid_amount = LEAST(agreed_price, (SELECT COALESCE(SUM(amount), 0) FROM job_payments WHERE job_id = ${jobId})),
+            status = ${jobUpdate.status},
+            completed_date = ${jobUpdate.completedDate || null},
+            logs = jsonb_build_array(${logEntryJson}::jsonb) || logs
+          WHERE id = ${jobId}
+          RETURNING *;`
+    ]);
+    const row = results[1][0];
+    return row ? mapJobRow(row) : null;
+  }
+
+  if (redis) {
+    const payments = (await redis.get('job_payments')) || [];
+    payments.unshift({ ...payment, jobId });
+    await redis.set('job_payments', payments);
+
+    const jobs = (await redis.get('jobs')) || [];
+    const jobIndex = jobs.findIndex(j => j.id === jobId);
+    if (jobIndex < 0) return null;
+
+    const job = jobs[jobIndex];
+    const totalPaid = payments.filter(p => p.jobId === jobId).reduce((sum, p) => sum + p.amount, 0);
+    job.paidAmount = Math.min(job.agreedPrice, totalPaid);
+    job.status = jobUpdate.status;
+    job.completedDate = jobUpdate.completedDate || job.completedDate;
+    job.logs = [jobUpdate.logEntry, ...(job.logs || [])];
+    jobs[jobIndex] = job;
+    await redis.set('jobs', jobs);
+    return job;
+  }
+
+  const payments = await readJson('job_payments.json');
+  payments.unshift({ ...payment, jobId });
+  await writeJson('job_payments.json', payments);
+
+  const jobs = await readJson('jobs.json');
+  const jobIndex = jobs.findIndex(j => j.id === jobId);
+  if (jobIndex < 0) return null;
+
+  const job = jobs[jobIndex];
+  const totalPaid = payments.filter(p => p.jobId === jobId).reduce((sum, p) => sum + p.amount, 0);
+  job.paidAmount = Math.min(job.agreedPrice, totalPaid);
+  job.status = jobUpdate.status;
+  job.completedDate = jobUpdate.completedDate || job.completedDate;
+  job.logs = [jobUpdate.logEntry, ...(job.logs || [])];
+  jobs[jobIndex] = job;
+  await writeJson('jobs.json', jobs);
+  return job;
+}
+
 // --- BUSINESS EXPENSES ---
 export async function getBusinessExpensesDb() {
   if (sql) {
@@ -408,7 +476,6 @@ export async function getBusinessExpensesDb() {
       amount: parseFloat(r.amount),
       category: r.category,
       date: r.date,
-      jobId: r.job_id || undefined,
       notes: r.notes || undefined
     }));
   }
@@ -424,14 +491,13 @@ export async function getBusinessExpensesDb() {
 export async function saveBusinessExpenseDb(exp) {
   if (sql) {
     await sql`
-      INSERT INTO business_expenses (id, title, amount, category, date, job_id, notes)
-      VALUES (${exp.id}, ${exp.title}, ${exp.amount}, ${exp.category}, ${exp.date}, ${exp.jobId || null}, ${exp.notes || null})
+      INSERT INTO business_expenses (id, title, amount, category, date, notes)
+      VALUES (${exp.id}, ${exp.title}, ${exp.amount}, ${exp.category}, ${exp.date}, ${exp.notes || null})
       ON CONFLICT (id) DO UPDATE SET
         title = EXCLUDED.title,
         amount = EXCLUDED.amount,
         category = EXCLUDED.category,
         date = EXCLUDED.date,
-        job_id = EXCLUDED.job_id,
         notes = EXCLUDED.notes;
     `;
     return exp;
@@ -642,20 +708,25 @@ export async function getDebtPaymentsDb() {
   return await readJson('debt_payments.json');
 }
 
+/**
+ * Atomically records a debt payment and recomputes debts.remaining_balance
+ * from total_amount - SUM(debt_payments) in the same transaction, instead of
+ * decrementing a cached value across two separate writes. A crash between
+ * the two writes can no longer leave the balance permanently wrong.
+ */
 export async function saveDebtPaymentDb(pay) {
   if (sql) {
-    await sql`
-      INSERT INTO debt_payments (id, debt_id, amount, date, notes)
-      VALUES (${pay.id}, ${pay.debtId}, ${pay.amount}, ${pay.date}, ${pay.notes || null});
-    `;
-
-    const debtRows = await sql`SELECT * FROM debts WHERE id = ${pay.debtId};`;
-    if (debtRows.length > 0) {
-      const current = debtRows[0];
-      const newBal = Math.max(0, parseFloat(current.remaining_balance) - pay.amount);
-      const newStat = newBal === 0 ? 'paid_off' : current.status;
-      await sql`UPDATE debts SET remaining_balance = ${newBal}, status = ${newStat} WHERE id = ${pay.debtId};`;
-    }
+    await sql.transaction([
+      sql`INSERT INTO debt_payments (id, debt_id, amount, date, notes)
+          VALUES (${pay.id}, ${pay.debtId}, ${pay.amount}, ${pay.date}, ${pay.notes || null});`,
+      sql`UPDATE debts SET
+            remaining_balance = GREATEST(0, total_amount - (SELECT COALESCE(SUM(amount), 0) FROM debt_payments WHERE debt_id = ${pay.debtId})),
+            status = CASE
+              WHEN total_amount - (SELECT COALESCE(SUM(amount), 0) FROM debt_payments WHERE debt_id = ${pay.debtId}) <= 0 THEN 'paid_off'
+              ELSE status
+            END
+          WHERE id = ${pay.debtId};`
+    ]);
     return pay;
   }
 
@@ -668,7 +739,8 @@ export async function saveDebtPaymentDb(pay) {
     const debtIndex = debts.findIndex(d => d.id === pay.debtId);
     if (debtIndex >= 0) {
       const debt = debts[debtIndex];
-      debt.remainingBalance = Math.max(0, debt.remainingBalance - pay.amount);
+      const totalPaid = payments.filter(p => p.debtId === pay.debtId).reduce((sum, p) => sum + p.amount, 0);
+      debt.remainingBalance = Math.max(0, debt.totalAmount - totalPaid);
       if (debt.remainingBalance === 0) debt.status = 'paid_off';
       debts[debtIndex] = debt;
       await redis.set('debts', debts);
@@ -684,7 +756,8 @@ export async function saveDebtPaymentDb(pay) {
   const debtIndex = debts.findIndex(d => d.id === pay.debtId);
   if (debtIndex >= 0) {
     const debt = debts[debtIndex];
-    debt.remainingBalance = Math.max(0, debt.remainingBalance - pay.amount);
+    const totalPaid = payments.filter(p => p.debtId === pay.debtId).reduce((sum, p) => sum + p.amount, 0);
+    debt.remainingBalance = Math.max(0, debt.totalAmount - totalPaid);
     if (debt.remainingBalance === 0) debt.status = 'paid_off';
     debts[debtIndex] = debt;
     await writeJson('debts.json', debts);

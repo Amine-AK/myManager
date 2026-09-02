@@ -4,7 +4,17 @@
 // ==========================================
 
 import type { IDataRepository } from './repository';
-import type { Job, BusinessExpense, PersonalExpense, DebtObligation, DebtPayment, JobPayment, JobIntervention, Client } from '../../types';
+import type {
+  Job,
+  BusinessExpense,
+  PersonalExpense,
+  DebtObligation,
+  DebtPayment,
+  JobPayment,
+  JobPaymentCollectionRequest,
+  JobIntervention,
+  Client
+} from '../../types';
 
 const API_BASE = '/api';
 
@@ -50,6 +60,19 @@ export class JsonFileRepository implements IDataRepository {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payment)
     });
+    return await res.json();
+  }
+
+  async collectJobPayment(jobId: string, request: JobPaymentCollectionRequest): Promise<Job> {
+    const res = await fetch(`${API_BASE}/jobs/${jobId}/collect-payment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Failed to record payment for job ${jobId}`);
+    }
     return await res.json();
   }
 
