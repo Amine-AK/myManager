@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import {
   initDb,
+  getActiveBackend,
   getJobsDb,
   saveJobDb,
   deleteJobDb,
@@ -46,6 +47,38 @@ app.use(express.json({ limit: '10mb' }));
 
 // Initialize DB tables if Neon DATABASE_URL is set
 initDb();
+
+// --- DIAGNOSTICS ---
+// Reports which storage backend is actually live and rough record counts.
+// No connection strings, tokens, or other secrets are ever included here.
+app.get('/api/health', async (req, res) => {
+  try {
+    const backend = getActiveBackend();
+    const [jobs, jobPayments, businessExpenses, personalExpenses, debts, clients] = await Promise.all([
+      getJobsDb(),
+      getJobPaymentsDb(),
+      getBusinessExpensesDb(),
+      getPersonalExpensesDb(),
+      getDebtsDb(),
+      getClientsDb()
+    ]);
+    res.json({
+      backend,
+      persistent: backend !== 'json-file',
+      counts: {
+        jobs: jobs.length,
+        jobPayments: jobPayments.length,
+        businessExpenses: businessExpenses.length,
+        personalExpenses: personalExpenses.length,
+        debts: debts.length,
+        clients: clients.length
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // --- JOBS ---
 app.get('/api/jobs', async (req, res) => {

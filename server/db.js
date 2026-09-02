@@ -38,6 +38,14 @@ if (pgUrl) {
   }
 }
 
+// Reports which storage backend is actually active, for diagnostics.
+// Reveals no connection strings or secrets - just which mode is live.
+export function getActiveBackend() {
+  if (sql) return 'postgres';
+  if (redis) return 'redis';
+  return 'json-file';
+}
+
 // Auto-initialize Neon PostgreSQL tables if using Postgres
 export async function initDb() {
   if (sql) {
