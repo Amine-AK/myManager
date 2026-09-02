@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type {
   Job,
   JobPayment,
+  JobPaymentCollectionRequest,
   JobIntervention,
   BusinessExpense,
   PersonalExpense,
@@ -105,6 +106,11 @@ export function App() {
 
   const handleSaveJobPayment = async (payment: JobPayment) => {
     await repository.saveJobPayment(payment);
+    await loadData();
+  };
+
+  const handleCollectJobPayment = async (jobId: string, request: JobPaymentCollectionRequest) => {
+    await repository.collectJobPayment(jobId, request);
     await loadData();
   };
 
@@ -226,7 +232,7 @@ export function App() {
             jobs={jobs}
             jobInterventions={jobInterventions}
             onSaveJob={handleSaveJob}
-            onSaveJobPayment={handleSaveJobPayment}
+            onCollectJobPayment={handleCollectJobPayment}
             onSaveJobIntervention={handleSaveJobIntervention}
             onDeleteJob={handleDeleteJob}
             onOpenQuickJob={() => setIsJobModalOpen(true)}

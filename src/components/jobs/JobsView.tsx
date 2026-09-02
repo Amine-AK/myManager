@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { Job, JobPayment, JobIntervention, JobStatus, JobActivityLog } from '../../types';
+import type { Job, JobPaymentCollectionRequest, JobIntervention, JobStatus, JobActivityLog } from '../../types';
 import { computeJobDurations, calculateJobTotalHours } from '../../lib/calculations/jobTiming';
 import { EditJobModal } from './EditJobModal';
 import {
@@ -28,7 +28,7 @@ interface JobsViewProps {
   jobs: Job[];
   jobInterventions: JobIntervention[];
   onSaveJob: (job: Job) => Promise<void>;
-  onSaveJobPayment: (payment: JobPayment) => Promise<void>;
+  onCollectJobPayment: (jobId: string, request: JobPaymentCollectionRequest) => Promise<void>;
   onSaveJobIntervention: (intervention: JobIntervention) => Promise<void>;
   onDeleteJob: (id: string) => Promise<void>;
   onOpenQuickJob: () => void;
@@ -38,7 +38,7 @@ export const JobsView: React.FC<JobsViewProps> = ({
   jobs,
   jobInterventions,
   onSaveJob,
-  onSaveJobPayment,
+  onCollectJobPayment,
   onSaveJobIntervention,
   onDeleteJob,
   onOpenQuickJob
@@ -83,33 +83,30 @@ export const JobsView: React.FC<JobsViewProps> = ({
     if (isNaN(amount) || amount <= 0) return;
 
     const today = new Date().toISOString().split('T')[0];
-    const newPaid = (job.paidAmount || 0) + amount;
+    // Estimate for the log note only; the server recomputes the authoritative
+    // paidAmount from the payment ledger inside collectJobPaymentDb.
+    const estimatedNewPaid = Math.min(job.agreedPrice, (job.paidAmount || 0) + amount);
     let jobStat = job.status;
-    if (newPaid >= job.agreedPrice && jobStat !== 'revision_requested') {
+    if (estimatedNewPaid >= job.agreedPrice && jobStat !== 'revision_requested') {
       jobStat = 'paid';
     }
 
-    const newLog: JobActivityLog = {
-      id: `log-${Date.now()}`,
-      timestamp: today,
-      status: jobStat,
-      note: `Payment collected: +${amount} MAD (Total paid: ${newPaid} MAD)`
-    };
-
-    const updatedJob: Job = {
-      ...job,
-      paidAmount: Math.min(newPaid, job.agreedPrice),
-      status: jobStat,
-      completedDate: jobStat === 'paid' ? today : job.completedDate,
-      logs: [newLog, ...(job.logs || [])]
-    };
-
-    await onSaveJob(updatedJob);
-    await onSaveJobPayment({
-      id: `jpay-${Date.now()}`,
-      jobId: job.id,
-      amount,
-      date: today
+    await onCollectJobPayment(job.id, {
+      payment: {
+        id: `jpay-${Date.now()}`,
+        amount,
+        date: today
+      },
+      jobUpdate: {
+        status: jobStat,
+        completedDate: jobStat === 'paid' ? today : job.completedDate,
+        logEntry: {
+          id: `log-${Date.now()}`,
+          timestamp: today,
+          status: jobStat,
+          note: `Payment collected: +${amount} MAD (Total paid: ${estimatedNewPaid} MAD)`
+        }
+      }
     });
     setCollectingJobId(null);
     setCollectionAmount('');
