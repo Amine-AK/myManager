@@ -1,6 +1,6 @@
-import React, { useRef } from 'react';
-import type { FinancialMetrics, Job, BusinessExpense, PersonalExpense, DebtObligation, DebtPayment } from '../../types';
-import { Printer, Download, Upload, Trash2, FileSpreadsheet, ShieldCheck } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import type { FinancialMetrics, Job, BusinessExpense, PersonalExpense, DebtObligation, DebtPayment, DataHealthReport } from '../../types';
+import { Printer, Download, Upload, Trash2, FileSpreadsheet, ShieldCheck, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface PrintStatementViewProps {
   metrics: FinancialMetrics;
@@ -9,6 +9,7 @@ interface PrintStatementViewProps {
   personalExpenses: PersonalExpense[];
   debts: DebtObligation[];
   debtPayments?: DebtPayment[];
+  dataHealthReport: DataHealthReport;
   onExportData: () => Promise<void>;
   onImportData: (jsonStr: string) => Promise<boolean>;
   onClearAllData: () => Promise<void>;
@@ -21,11 +22,13 @@ export const PrintStatementView: React.FC<PrintStatementViewProps> = ({
   personalExpenses,
   debts,
   debtPayments = [],
+  dataHealthReport,
   onExportData,
   onImportData,
   onClearAllData
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showHealthDetails, setShowHealthDetails] = useState(false);
 
   const handlePrint = () => {
     window.print();
@@ -143,6 +146,62 @@ export const PrintStatementView: React.FC<PrintStatementViewProps> = ({
             Clear All Data (Testing)
           </button>
         </div>
+      </div>
+
+      {/* DATA HEALTH REPORT (Hidden in Print) */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg no-print">
+        <button
+          onClick={() => setShowHealthDetails(v => !v)}
+          className="w-full flex items-center justify-between gap-3"
+        >
+          <div className="flex items-center gap-2">
+            <div
+              className={`p-2 rounded-xl ${
+                dataHealthReport.issues.length === 0
+                  ? 'bg-emerald-500/10 text-emerald-400'
+                  : 'bg-amber-500/10 text-amber-400'
+              }`}
+            >
+              {dataHealthReport.issues.length === 0 ? (
+                <CheckCircle2 className="w-5 h-5" />
+              ) : (
+                <AlertTriangle className="w-5 h-5" />
+              )}
+            </div>
+            <div className="text-left">
+              <h3 className="text-sm font-bold text-slate-100">Data Health</h3>
+              <p className="text-xs text-slate-400">
+                {dataHealthReport.issues.length === 0
+                  ? `✓ ${dataHealthReport.recordsChecked} records checked, no inconsistencies found`
+                  : `⚠ ${dataHealthReport.issues.length} inconsistenc${dataHealthReport.issues.length === 1 ? 'y' : 'ies'} found across ${dataHealthReport.recordsChecked} records`}
+              </p>
+            </div>
+          </div>
+          {dataHealthReport.issues.length > 0 &&
+            (showHealthDetails ? (
+              <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+            ))}
+        </button>
+
+        {showHealthDetails && dataHealthReport.issues.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-slate-800 space-y-2">
+            {dataHealthReport.issues.map((issue, idx) => (
+              <div
+                key={`${issue.type}-${issue.recordId}-${idx}`}
+                className={`p-2.5 rounded-xl border text-xs flex items-start gap-2 ${
+                  issue.severity === 'error'
+                    ? 'bg-rose-500/10 border-rose-500/30 text-rose-200'
+                    : 'bg-amber-500/10 border-amber-500/30 text-amber-200'
+                }`}
+              >
+                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                <span>{issue.message}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* FORMAL PRINTABLE REPORT CONTAINER */}

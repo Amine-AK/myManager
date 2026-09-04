@@ -28,6 +28,7 @@ export * from './weeklyTracker';
 export * from './jobTiming';
 export * from './personalExpenseScope';
 export * from './interventions';
+export * from './dataHealth';
 
 /**
  * SINGLE SOURCE OF TRUTH FOR ALL FINANCIAL CALCULATIONS.

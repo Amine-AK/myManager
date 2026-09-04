@@ -218,3 +218,22 @@ export interface FactualInsight {
   message: string;
   metric?: string;
 }
+
+// ------------------------------------------
+// DATA INTEGRITY / DATA HEALTH REPORT
+// ------------------------------------------
+
+export type DataHealthSeverity = 'error' | 'warning';
+
+export interface DataHealthIssue {
+  type: string;           // e.g. 'job_paid_amount_mismatch', 'orphaned_job_payment'
+  severity: DataHealthSeverity;
+  recordId: string;
+  message: string;        // Factual, specific description of the discrepancy
+}
+
+export interface DataHealthReport {
+  checkedAt: string;      // ISO timestamp
+  recordsChecked: number;
+  issues: DataHealthIssue[];
+}
