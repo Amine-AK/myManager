@@ -10,9 +10,10 @@ import type {
   DebtPayment,
   Client,
   FinancialMetrics,
-  FactualInsight
+  FactualInsight,
+  DataHealthReport
 } from './types';
-import { computeFinancialMetrics, generateFactualInsights } from './lib/calculations';
+import { computeFinancialMetrics, generateFactualInsights, computeDataHealthReport } from './lib/calculations';
 import { jsonFileRepository as repository } from './lib/storage/jsonFileRepository';
 import { HeaderNav } from './components/header/HeaderNav';
 import { DashboardView } from './components/dashboard/DashboardView';
@@ -92,6 +93,18 @@ export function App() {
 
   // Generate objective factual insights
   const insights: FactualInsight[] = generateFactualInsights(metrics, jobs, debts);
+
+  // Read-only reconciliation: stored values vs. their source ledgers
+  const dataHealthReport: DataHealthReport = computeDataHealthReport(
+    jobs,
+    jobPayments,
+    jobInterventions,
+    debts,
+    debtPayments,
+    businessExpenses,
+    personalExpenses,
+    clients
+  );
 
   // --- Handlers for saving records ---
   const handleSaveJob = async (job: Job) => {
@@ -269,6 +282,7 @@ export function App() {
             personalExpenses={personalExpenses}
             debts={debts}
             debtPayments={debtPayments}
+            dataHealthReport={dataHealthReport}
             onExportData={handleExportData}
             onImportData={handleImportData}
             onClearAllData={handleClearAllData}
